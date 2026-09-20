@@ -22,7 +22,7 @@ dotnet test
 - `tests/`: every rule has tests for the case it reports, the safe case
   next to it, and edge cases. Test snippets use small look-alikes of the EF
   Core types (`tests/.../Support/EfCoreStubs.cs`).
-- `docs/rules/`: one page per rule.
+- `docs/rules/`: one page per rule. `docs/tutorial.md` walks through install, results and CI; update it whenever behaviour, options or rules change.
 
 ## Adding a rule
 

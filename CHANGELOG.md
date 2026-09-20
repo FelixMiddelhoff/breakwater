@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Tutorial (`docs/tutorial.md`).
 - `BW001`: `DropColumn` is not safe for a rolling deploy.
 - `BW002`: `DropTable` is not safe for a rolling deploy.
 - `BW003`: `RenameColumn` and `RenameTable` are not safe for a rolling deploy.

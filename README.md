@@ -24,6 +24,10 @@ dotnet add package Breakwater.Analyzers
 The package contains only the analyzer. It adds no runtime dependency and works
 with any EF Core provider.
 
+## Learn more
+
+- [Tutorial](docs/tutorial.md): install, try it, read results, configure, use in CI, troubleshoot.
+
 ## Rules
 
 | Id | What it flags |
