@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # The analyzer must keep working with the oldest Roslyn it supports.
+      - dependency-name: Microsoft.CodeAnalysis.CSharp
+        update-types: [ "version-update:semver-major", "version-update:semver-minor" ]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
