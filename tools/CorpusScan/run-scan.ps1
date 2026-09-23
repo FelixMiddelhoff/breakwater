@@ -70,6 +70,28 @@ foreach ($src in $sourceList) {
             $_.Name -notmatch "\.Designer\.cs$" -and
             (Select-String -Path $_.FullName -Pattern "MigrationBuilder" -SimpleMatch -Quiet)
         }
+        # A handful of migration files in large repos (e.g. bitwarden's
+        # PostgresMigrations/MySqlMigrations) reference a sibling project's
+        # namespace via `using` (helper base classes/extension methods that
+        # live outside the Migrations folder, e.g. `Bit.Core`/`Bit.EfShared`)
+        # that this tool never checks out. That is a CS0234 (namespace not
+        # found) *error*, not a warning `NoWarn` can suppress, and a CS-level
+        # error in even one file of the throwaway project stops the whole
+        # compilation from producing any analyzer SARIF output at all (unlike
+        # a resolvable-type CS0246, which the compile tolerates enough for
+        # analyzers to still run — see NoWarn below). Excluding these few
+        # files up front (counted separately, not silently dropped) lets the
+        # other 150+ real migration files in the same source still get
+        # scanned instead of the whole source silently producing zero
+        # findings.
+        $unresolvableUsingPattern = '^\s*using\s+Bit\.(Core|EfShared)(\.[\w]+)*\s*;'
+        $excludedForUnresolvableUsing = $files | Where-Object {
+            (Select-String -Path $_.FullName -Pattern $unresolvableUsingPattern -Quiet)
+        }
+        if ($excludedForUnresolvableUsing.Count -gt 0) {
+            Write-Warning "  excluding $($excludedForUnresolvableUsing.Count) file(s) with an unresolvable cross-project `using` (not checked out by this tool): $($excludedForUnresolvableUsing.Name -join ', ')"
+            $files = $files | Where-Object { $excludedForUnresolvableUsing -notcontains $_ }
+        }
         # A Designer.cs is a support file only when its non-designer sibling
         # made it into $files (keeps unrelated Designer.cs noise, e.g. from a
         # non-EF migration folder, out of the compile set).
@@ -103,6 +125,14 @@ foreach ($src in $sourceList) {
     # so this is safe and does not change what the analyzer sees per file.
     $copied = @{}
     $nsRegex = New-Object System.Text.RegularExpressions.Regex '(?m)^(\s*namespace\s+)([\w\.]+)'
+    # Some repos (e.g. platformplatform) put `[DbContext(typeof(SomeDbContext))]`
+    # on the migration class. The DbContext type lives outside the Migrations
+    # folder this tool checks out, so it is a real CS0246 -- an error, not a
+    # warning, so `NoWarn` cannot suppress it and it silently blocks the whole
+    # compile from producing any analyzer SARIF output at all. The attribute is
+    # irrelevant to every rule (only `[Migration("id")]`, handled separately
+    # below, matters to BW028), so it is stripped instead of worked around.
+    $dbContextAttrRegex = New-Object System.Text.RegularExpressions.Regex '(?m)^\s*\[DbContext\(typeof\([\w\.]+\)\)\]\s*\r?\n'
     $i = 0
     foreach ($f in $files) {
         $i++
@@ -111,6 +141,7 @@ foreach ($src in $sourceList) {
         $content = Get-Content $f.FullName -Raw
         $evaluator = { param($m) "$($m.Groups[1].Value)$($m.Groups[2].Value)_$suffix" }
         $content = $nsRegex.Replace($content, [System.Text.RegularExpressions.MatchEvaluator]$evaluator, 1)
+        $content = $dbContextAttrRegex.Replace($content, '')
         Set-Content -Path $dest -Value $content -Encoding utf8 -NoNewline
         $copied[$dest] = $f.FullName
 
@@ -138,6 +169,11 @@ foreach ($src in $sourceList) {
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- Some repos (e.g. platformplatform) rely on project-wide implicit
+         usings (a GlobalUsings.cs this tool does not check out) and omit
+         `using System;` from individual migration files, which otherwise
+         fails even on BCL types like DateTimeOffset. -->
+    <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <NoWarn>`$(NoWarn);CS0108;CS0114;CS0246;CS0103</NoWarn>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
