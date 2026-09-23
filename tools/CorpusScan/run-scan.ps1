@@ -189,7 +189,7 @@ foreach ($src in $sourceList) {
     <Nullable>enable</Nullable>
     <!-- Some repos (e.g. platformplatform) rely on project-wide implicit
          usings (a GlobalUsings.cs this tool does not check out) and omit
-         `using System;` from individual migration files, which otherwise
+         'using System;' from individual migration files, which otherwise
          fails even on BCL types like DateTimeOffset. -->
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
