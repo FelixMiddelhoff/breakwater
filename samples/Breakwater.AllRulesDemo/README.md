@@ -82,35 +82,26 @@ policy - both count as "fired".
 No `BW999` (analyzer-failed) diagnostic appears anywhere in the SARIF output: the analyzer did
 not crash on any of these 34 deliberately unusual shapes.
 
-## A real finding: `breakwater_*` options need a `.globalconfig`, not a plain `.editorconfig`
+## Fixed: `breakwater_*` options now work from a plain `.editorconfig`
 
-While wiring up BW011/BW020/BW030 (strict-only) and the provider-specific rules, a genuine gap
-surfaced: `BreakwaterProfileReader.Read` and `BreakwaterConfiguration.Load` both read options
-exclusively from `AnalyzerConfigOptionsProvider.GlobalOptions`. In a real `dotnet build`
-(not the in-memory test harness, which injects a dictionary directly as `GlobalOptions`), a
-custom key like `breakwater_profile = strict` placed in a normal project `.editorconfig` -
-whether unsectioned at the top of the file or inside a `[*.cs]` section, and regardless of
-`root = true` - **never reached `GlobalOptions`** in this environment (.NET SDK 10.0.401,
-`Microsoft.CodeAnalysis.CSharp` as referenced by the analyzer). Both
-`breakwater_profile = strict` and `breakwater_provider = postgres` were tested this way and
-neither had any effect on the real build's diagnostics.
+An earlier session found a genuine gap here: `BreakwaterProfileReader.Read` and
+`BreakwaterConfiguration.Read` read options exclusively from
+`AnalyzerConfigOptionsProvider.GlobalOptions`. In a real `dotnet build` (not the in-memory test
+harness, which injects a dictionary directly as `GlobalOptions`), a custom key like
+`breakwater_profile = strict` placed in a normal project `.editorconfig` - whether unsectioned
+at the top of the file or inside a `[*.cs]` section, and regardless of `root = true` - never
+reached `GlobalOptions`. Only a `.globalconfig` file with `is_global = true` worked, which this
+project originally worked around with its own `.globalconfig`.
 
-The only mechanism that reliably worked was a `.globalconfig` file (this project's
-`.globalconfig`) with `is_global = true` at the top - the same mechanism
-`tools/CorpusScan/run-scan.ps1` documents in its own comment ("so BW011/BW020/BW030 ... also
-surface their raw finding counts"), though that script's generated file is actually a regular
-`.editorconfig` with `root = true` and the key under `[*.cs]`, which this project's testing
-shows does *not* reliably work either - meaning the corpus scan's strict-only counts should be
-double-checked, not just assumed correct because a prior session's comment says so.
-
-This was not "fixed" as part of this session: `breakwater-rules.md` documents configuration as
-"all via `.editorconfig` / MSBuild property, no config file", and fixing the read path (for
-example, falling back to `optionsProvider.GetOptions(tree)` per syntax tree, which is how a
-`[*.cs]`-scoped key in a real `.editorconfig` is actually supposed to be visible) touches
-`BreakwaterConfiguration.cs` and `BreakwaterProfile.cs`, used by every provider-aware and
-strict-only rule - a real fix, not a one-line change, and outside the scope of building this
-demo project. It is flagged here and in `breakwater-memory.md` for a follow-up session. This
-demo project works around it with `.globalconfig` so it can still prove every rule fires.
+This has since been fixed: both readers now go through
+`Breakwater.Analyzers.Configuration.BreakwaterConfigOptionsReader.TryGetValue`, which checks
+`AnalyzerConfigOptionsProvider.GetOptions(tree)` (per-syntax-tree options - the mechanism a
+plain `.editorconfig`'s section-matching actually populates) for every syntax tree in the
+compilation first, falling back to `GlobalOptions` for setups that do use a `.globalconfig`.
+Re-verified against this project with a real `dotnet build -p:ErrorLog=results.sarif;version=2`:
+`breakwater_profile = strict` added directly to this project's `.editorconfig` (with the
+`.globalconfig` removed entirely) makes BW011/BW020/BW030 fire exactly as before. See
+`breakwater-memory.md` for the root-cause writeup and the corpus-scan reinterpretation note.
 
 ## Not wired into CI
 

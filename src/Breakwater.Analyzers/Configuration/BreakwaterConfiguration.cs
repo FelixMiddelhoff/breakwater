@@ -56,22 +56,20 @@ internal sealed class BreakwaterConfiguration
         SmallTables = smallTables;
     }
 
-    public static BreakwaterConfiguration Read(AnalyzerConfigOptionsProvider optionsProvider)
+    public static BreakwaterConfiguration Read(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        var options = optionsProvider.GlobalOptions;
-
-        var profile = BreakwaterProfileReader.Read(optionsProvider);
-        var provider = ReadProvider(options);
-        var deployModel = ReadDeployModel(options);
-        var sinceMigrationId = ReadSinceMigration(options);
-        var smallTables = ReadSmallTables(options);
+        var profile = BreakwaterProfileReader.Read(compilation, optionsProvider);
+        var provider = ReadProvider(compilation, optionsProvider);
+        var deployModel = ReadDeployModel(compilation, optionsProvider);
+        var sinceMigrationId = ReadSinceMigration(compilation, optionsProvider);
+        var smallTables = ReadSmallTables(compilation, optionsProvider);
 
         return new BreakwaterConfiguration(profile, provider, deployModel, sinceMigrationId, smallTables);
     }
 
-    private static BreakwaterDatabaseProvider ReadProvider(AnalyzerConfigOptions options)
+    private static BreakwaterDatabaseProvider ReadProvider(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        if (!options.TryGetValue(ProviderKey, out var value))
+        if (!BreakwaterConfigOptionsReader.TryGetValue(compilation, optionsProvider, ProviderKey, out var value))
         {
             return BreakwaterDatabaseProvider.Auto;
         }
@@ -87,9 +85,9 @@ internal sealed class BreakwaterConfiguration
         };
     }
 
-    private static BreakwaterDeployModel ReadDeployModel(AnalyzerConfigOptions options)
+    private static BreakwaterDeployModel ReadDeployModel(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        if (options.TryGetValue(DeployModelKey, out var value)
+        if (BreakwaterConfigOptionsReader.TryGetValue(compilation, optionsProvider, DeployModelKey, out var value)
             && string.Equals(value?.Trim(), "downtime_ok", StringComparison.OrdinalIgnoreCase))
         {
             return BreakwaterDeployModel.DowntimeOk;
@@ -98,24 +96,24 @@ internal sealed class BreakwaterConfiguration
         return BreakwaterDeployModel.Rolling;
     }
 
-    private static string? ReadSinceMigration(AnalyzerConfigOptions options)
+    private static string? ReadSinceMigration(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        if (options.TryGetValue(SinceMigrationKey, out var value) && !string.IsNullOrWhiteSpace(value))
+        if (BreakwaterConfigOptionsReader.TryGetValue(compilation, optionsProvider, SinceMigrationKey, out var value) && !string.IsNullOrWhiteSpace(value))
         {
-            return value.Trim();
+            return value!.Trim();
         }
 
         return null;
     }
 
-    private static HashSet<string> ReadSmallTables(AnalyzerConfigOptions options)
+    private static HashSet<string> ReadSmallTables(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        if (!options.TryGetValue(SmallTablesKey, out var value) || string.IsNullOrWhiteSpace(value))
+        if (!BreakwaterConfigOptionsReader.TryGetValue(compilation, optionsProvider, SmallTablesKey, out var value) || string.IsNullOrWhiteSpace(value))
         {
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var names = value
+        var names = value!
             .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(name => name.Trim())
             .Where(name => name.Length > 0);

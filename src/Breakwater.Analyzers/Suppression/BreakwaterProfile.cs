@@ -1,4 +1,5 @@
 using System;
+using Breakwater.Analyzers.Configuration;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Breakwater.Analyzers.Suppression;
@@ -19,13 +20,15 @@ internal static class BreakwaterProfileReader
     private const string Key = "breakwater_profile";
 
     /// <summary>
-    /// Reads the profile from the compilation's global <c>.editorconfig</c> options. Read once per
+    /// Reads the profile from the compilation's <c>.editorconfig</c> options. Read once per
     /// compilation start and passed down, rather than re-read per operation - the value cannot
-    /// change mid-compilation.
+    /// change mid-compilation. See <see cref="BreakwaterConfigOptionsReader"/> for why this checks
+    /// per-syntax-tree options (real project <c>.editorconfig</c> files) before falling back to
+    /// <see cref="AnalyzerConfigOptionsProvider.GlobalOptions"/> (<c>.globalconfig</c>-style setups).
     /// </summary>
-    public static BreakwaterProfile Read(AnalyzerConfigOptionsProvider optionsProvider)
+    public static BreakwaterProfile Read(Microsoft.CodeAnalysis.Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
     {
-        if (optionsProvider.GlobalOptions.TryGetValue(Key, out var value)
+        if (BreakwaterConfigOptionsReader.TryGetValue(compilation, optionsProvider, Key, out var value)
             && string.Equals(value?.Trim(), "strict", StringComparison.OrdinalIgnoreCase))
         {
             return BreakwaterProfile.Strict;
