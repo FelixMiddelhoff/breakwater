@@ -107,7 +107,7 @@ foreach ($src in $sourceList) {
             (Select-String -Path $_.FullName -Pattern $unresolvableUsingPattern -Quiet)
         }
         if ($excludedForUnresolvableUsing.Count -gt 0) {
-            Write-Warning "  excluding $($excludedForUnresolvableUsing.Count) file(s) with an unresolvable cross-project `using` (not checked out by this tool): $($excludedForUnresolvableUsing.Name -join ', ')"
+            Write-Warning "  excluding $($excludedForUnresolvableUsing.Count) file(s) with an unresolvable cross-project 'using' (not checked out by this tool): $($excludedForUnresolvableUsing.Name -join ', ')"
             $files = $files | Where-Object { $excludedForUnresolvableUsing -notcontains $_ }
         }
         # A Designer.cs is a support file only when its non-designer sibling
