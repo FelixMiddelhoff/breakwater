@@ -260,6 +260,23 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         var operationCount = 0;
         Location? firstOperationLocation = null;
 
+        // First pass: every table CreateTable'd in this method, so the second pass below can
+        // tell (regardless of call order) that a later CreateIndex/AddForeignKey/etc. on that
+        // table still targets an empty table. Without this, BW022 (and only BW022 - every other
+        // rule already gets this for free by running its own single pass after the whole
+        // MigrationContext is built) miscounted CreateIndex/AddForeignKey calls that immediately
+        // follow a CreateTable for the same table as "risky", which fired constantly on ordinary
+        // Initial migrations (a table created and indexed in the same migration has no existing
+        // data to lock or violate) - see breakwater-quality-policy.md principle 4.
+        foreach (var invocationSyntax in methodNode.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            if (semanticModel.GetOperation(invocationSyntax) is IInvocationOperation createTableCandidate &&
+                MigrationOperationReader.Read(createTableCandidate, migrationBuilder) is { Kind: MigrationOperationKind.CreateTable } createTableOp)
+            {
+                tablesCreated.Add(createTableOp.QualifiedTable);
+            }
+        }
+
         foreach (var invocationSyntax in methodNode.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             if (semanticModel.GetOperation(invocationSyntax) is not IInvocationOperation invocationOperation)
@@ -275,11 +292,6 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
 
             operationCount++;
             firstOperationLocation ??= operation.Location;
-
-            if (operation.Kind == MigrationOperationKind.CreateTable)
-            {
-                tablesCreated.Add(operation.QualifiedTable);
-            }
 
             if (operation.Kind == MigrationOperationKind.DropColumn)
             {
@@ -315,7 +327,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
                 hasDataOperation = true;
             }
 
-            if (!NonRiskyKinds.Contains(operation.Kind))
+            if (!NonRiskyKinds.Contains(operation.Kind) && !tablesCreated.Contains(operation.QualifiedTable))
             {
                 riskyCountByTable.TryGetValue(operation.QualifiedTable, out var existingCount);
                 riskyCountByTable[operation.QualifiedTable] = existingCount + 1;

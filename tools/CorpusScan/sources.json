@@ -1,0 +1,7 @@
+[
+  { "name": "eShop", "path": "D:/Claude/eShop", "kind": "real" },
+  { "name": "aspire", "path": "D:/Claude/aspire-repo", "kind": "real" },
+  { "name": "OrchardCore", "path": "D:/Claude/OrchardCore", "kind": "real" },
+  { "name": "abp", "path": "D:/Claude/abp", "kind": "real" },
+  { "name": "eShopOnWeb", "path": "D:/Claude/eShopOnWeb", "kind": "real" }
+]

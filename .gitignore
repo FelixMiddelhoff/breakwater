@@ -7,3 +7,11 @@ coverage/
 *.nupkg
 *.snupkg
 artifacts/
+
+# CorpusScan (tools/CorpusScan): disposable per-run throwaway projects and the raw per-finding
+# CSV (file:line detail from whatever local checkouts the run used). The aggregated per-rule
+# counts (tools/CorpusScan/results/corpus-scan.json) are the checked-in baseline; this is not.
+tools/CorpusScan/_work/
+tools/CorpusScan/results/corpus-scan-findings.csv
+tools/CorpusScan/results/corpus-scan.json
+

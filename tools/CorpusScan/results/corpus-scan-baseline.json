@@ -1,0 +1,46 @@
+{
+  "_comment": "M10 precision-gate baseline (breakwater-quality-policy.md). Real open-source corpus, not synthetic. Regenerate with tools/CorpusScan/run-scan.ps1 and diff against this file before every release (a rise in findings-per-1000-operations needs a reviewed reason, per the quality policy's noise-regression clause).",
+  "scanDate": "2026-09-23",
+  "analyzerCommit": "8d0b568 (M9) + the BW022 fix committed alongside this baseline",
+  "corpusKind": "real",
+  "sources": [
+    { "name": "eShop", "repo": "dotnet/eShop", "migrationFiles": 9 },
+    { "name": "aspire", "repo": "dotnet/aspire", "migrationFiles": 2, "note": "5 of 7 candidate Migrations-folder files were CLI-tool migrations unrelated to EF Core (Aspire.Cli project scaffolding), correctly excluded by the MigrationBuilder-body filter" },
+    { "name": "abp", "repo": "abpframework/abp", "migrationFiles": 50 },
+    { "name": "eShopOnWeb", "repo": "dotnet-architecture/eShopOnWeb", "migrationFiles": 4 }
+  ],
+  "sourcesConsideredButExcluded": [
+    { "name": "OrchardCore", "repo": "OrchardCore/OrchardCore", "reason": "uses its own YesSql-based IMigration/DataMigration system, not EF Core migrations; 16 candidate files under a 'Migrations' folder, zero contained a MigrationBuilder call" },
+    { "name": "eShopOnContainers", "repo": "dotnet-architecture/eShopOnContainers", "reason": "archived predecessor of dotnet/eShop; no Migrations folder found in a shallow clone" }
+  ],
+  "totalMigrationFiles": 65,
+  "approxTotalOperations": 1786,
+  "approxOperationCountMethod": "grep count of migrationBuilder.<Method>( call sites across all copied corpus files -- a proxy for MigrationContext.OperationCount, not the exact analyzer-internal figure (it also counts chained .Annotation(...) calls the analyzer does not count as separate operations), close enough for a noise-regression baseline",
+  "totalFindings": 45,
+  "findingsPer1000Operations": 25.2,
+  "byRule": [
+    { "ruleId": "BW001", "findings": 5, "reviewed": 5, "legitimate": 5, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW002", "findings": 1, "reviewed": 1, "legitimate": 1, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW004", "findings": 2, "reviewed": 2, "legitimate": 2, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW005", "findings": 4, "reviewed": 4, "legitimate": 4, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW007", "findings": 6, "reviewed": 6, "legitimate": 6, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW008", "findings": 2, "reviewed": 2, "legitimate": 2, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW017", "findings": 2, "reviewed": 2, "legitimate": 2, "precision": 1.0, "currentTier": "Suggestion", "gateTier": "Suggestion or better", "mismatch": false, "note": "100% legitimate on this sample would also clear the Warning bar, but BW017's Suggestion tier was a deliberate M6 correction (a dropped constraint is often intentional cleanup, not just a noisy-provider concern) documented in breakwater-memory.md, not just a gate artifact -- left as Suggestion" },
+    { "ruleId": "BW018", "findings": 3, "reviewed": 3, "legitimate": 3, "precision": 1.0, "currentTier": "Suggestion", "gateTier": "Suggestion or better", "mismatch": false },
+    { "ruleId": "BW021", "findings": 1, "reviewed": 1, "legitimate": 1, "precision": 1.0, "currentTier": "Suggestion", "gateTier": "Suggestion or better", "mismatch": false },
+    { "ruleId": "BW022", "findings": 13, "reviewed": 13, "legitimate": 13, "precision": 1.0, "currentTier": "Suggestion", "gateTier": "Suggestion or better", "mismatch": false, "note": "Before the M10 fix this rule counted CreateIndex/AddForeignKey/etc. on a table created earlier in the SAME migration as risky, firing 62 times in this corpus (virtually all on Initial-migration table setup, i.e. an empty table -- a direct violation of breakwater-quality-policy.md principle 4). Fixed in MigrationAnalyzer.BuildContext (src/Breakwater.Analyzers/MigrationAnalyzer.cs): a two-pass scan now excludes tables created in the same Up method from the risky-operation count, the same exemption every other table-lock/data rule already had. Re-scanned after the fix: 13 findings, all on tables that pre-date the migration, all reviewed legitimate. Regression test added: MixedRiskyOperationsRuleTests.Risky_operations_on_a_table_created_in_this_migration_do_not_count_toward_BW022." },
+    { "ruleId": "BW023", "findings": 1, "reviewed": 1, "legitimate": 1, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW026", "findings": 3, "reviewed": 3, "legitimate": 3, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false },
+    { "ruleId": "BW027", "findings": 2, "reviewed": 2, "legitimate": 2, "precision": 1.0, "currentTier": "Warning", "gateTier": "Warning", "mismatch": false }
+  ],
+  "rulesWithZeroCorpusFindings": {
+    "ruleIds": ["BW003", "BW006", "BW009", "BW010", "BW011", "BW012", "BW013", "BW014", "BW015", "BW016", "BW019", "BW020", "BW024", "BW025", "BW028", "BW029", "BW030", "BW031", "BW032", "BW033", "BW034", "BW999"],
+    "policy": "Rules that fire on nothing in the corpus are checked with hand-written cases instead and ship as Warning only if the pattern is unambiguous (breakwater-quality-policy.md).",
+    "verdict": "Each of these already has hand-written 'fires' test cases from M4-M9 (tests/Breakwater.Analyzers.Tests/*RuleTests.cs, one file per rule, positive + safe + edge cases per breakwater-test-plan.md) plus a compiling doc example under docs/rules/BW0xx.md verified by DocumentationTests.cs. Those are the hand-written cases the policy calls for; no new hand-written corpus was built separately for M10, since the ones already in the test suite are real, reviewed, and exercised through the actual analyzer (not just described) -- this is a judgment call, see breakwater-memory.md's M10 note for the reasoning and the corpus-size caveat.",
+    "corpusSizeCaveat": "65 real migration files across 4 mid-size open-source repos is a modest sample. Rules whose trigger shape is rare even in a large enough corpus (e.g. BW019 raw-SQL risk patterns, BW031/BW033/BW034's specific dangerous-SQL substrings, BW024 index-on-large-table heuristics) legitimately may not appear here. This baseline does not claim exhaustive real-world coverage; expanding sources.json with more/larger real repos before v0.1.0 would strengthen it further but was not done this session (time-boxed)."
+  },
+  "artifactsFoundAndFixedDuringThisScan": [
+    "BW028 initially reported a false positive on every single migration in the corpus (65/65): the scan tool excluded *.Designer.cs (per the analyzer's own 'Down, snapshots and unrelated code are ignored' principle), but a real project's [Migration(\"id\")] attribute lives on the Designer.cs partial of the same class, not the file breakwater itself analyzes. This was a scan-methodology bug, not an analyzer bug: fixed in tools/CorpusScan/run-scan.ps1 by lifting just the attribute text from the Designer.cs sibling onto the copied migration file. Re-scanned: 0 BW028 findings across the whole corpus (correctly silent -- every real migration in this corpus already carries the attribute via its Designer.cs partial).",
+    "BW022's true precision bug (table-created-in-this-migration not exempted) -- see the BW022 row above. This one was a genuine analyzer defect, fixed in src/, not a scan-tool artifact."
+  ]
+}
