@@ -20,13 +20,20 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Sources,
-    [string]$OutDir = "$PSScriptRoot/results"
+    # Left unset by default rather than "$PSScriptRoot/results" here: in
+    # Windows PowerShell 5.1, a default parameter value referencing
+    # $PSScriptRoot is bound before the script body runs, when $PSScriptRoot
+    # is not yet populated -- it silently evaluates to "" and writes results
+    # to the filesystem root (e.g. D:\results) instead of next to this
+    # script. Resolved for real below, once $PSScriptRoot is valid.
+    [string]$OutDir
 )
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot/../.."
 $analyzerProj = Join-Path $root "src/Breakwater.Analyzers/Breakwater.Analyzers.csproj"
 $workDir = "$PSScriptRoot/_work"
+if ([string]::IsNullOrEmpty($OutDir)) { $OutDir = "$PSScriptRoot/results" }
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
