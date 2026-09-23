@@ -1,0 +1,23 @@
+# breakwater_profile = strict is set in .globalconfig, not here: a plain .editorconfig key,
+# whether unsectioned or under a [*.cs] section, did NOT reliably reach
+# AnalyzerConfigOptionsProvider.GlobalOptions in a real `dotnet build` for this project - see
+# README.md "A real finding: breakwater_* options need a .globalconfig, not .editorconfig"
+# for the full writeup, including the same gap confirmed for breakwater_provider. Only
+# BreakwaterProfileReader.Read/BreakwaterConfiguration.Load consume GlobalOptions, so the
+# strict-only rules (BW011/BW020/BW030) and provider overrides never fired from a normal
+# project .editorconfig in this environment - only from samples/Breakwater.AllRulesDemo/.globalconfig
+# (is_global = true).
+#
+# Provider detection is otherwise left on `auto`: BW014/BW016/BW019/BW020 need Postgres and
+# BW029 needs MySQL in the same compilation, and each migration that needs a specific provider
+# wraps its calls in the real `if (migrationBuilder.IsNpgsql())` / `IsMySql()` guard pattern
+# that `auto` detects (see ProviderGuardStubs.cs for why those guard extension methods exist
+# locally - purely syntactic stubs so the demo compiles without depending on the actual
+# Npgsql/Pomelo provider packages).
+
+root = true
+
+[*.cs]
+dotnet_diagnostic.BW011.severity = warning
+dotnet_diagnostic.BW020.severity = warning
+dotnet_diagnostic.BW030.severity = warning

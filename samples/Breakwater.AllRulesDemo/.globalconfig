@@ -1,0 +1,8 @@
+is_global = true
+
+# breakwater_profile is read via AnalyzerConfigOptionsProvider.GlobalOptions
+# (BreakwaterProfileReader.Read). A .globalconfig file with is_global = true is the
+# unambiguous, spec-guaranteed way to set a global analyzer config option regardless of
+# section-matching nuances in a regular .editorconfig - see README.md for why this file
+# exists alongside .editorconfig.
+breakwater_profile = strict
