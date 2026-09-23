@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -87,6 +88,8 @@ internal static class MigrationOperationReader
                     HasDefaultValueSql = HasArgument(invocation, "defaultValueSql"),
                     DefaultValueSql = ReadOptionalText(invocation, "defaultValueSql"),
                     IsNpgsql = IsGuardedByIsNpgsql(invocation),
+                    IsMySql = IsGuardedByIsMySql(invocation),
+                    HasPlaceholderDefaultValue = IsPlaceholderDefault(invocation, "defaultValue"),
                 };
 
             case "AlterColumn":
@@ -114,6 +117,9 @@ internal static class MigrationOperationReader
                     HasDefaultValueSql = HasArgument(invocation, "defaultValueSql"),
                     DefaultValueSql = ReadOptionalText(invocation, "defaultValueSql"),
                     IsNpgsql = IsGuardedByIsNpgsql(invocation),
+                    IsMySql = IsGuardedByIsMySql(invocation),
+                    AnnotationNames = ReadChainedAnnotationNames(invocation, old: false),
+                    OldAnnotationNames = ReadChainedAnnotationNames(invocation, old: true),
                 };
 
             case "CreateIndex":
@@ -128,6 +134,9 @@ internal static class MigrationOperationReader
                     Unique = ReadBool(invocation, "unique"),
                     IsCreatedConcurrently = HasChainedAnnotation(invocation, "Npgsql:CreatedConcurrently"),
                     IsOnline = HasChainedAnnotation(invocation, "SqlServer:Online"),
+                    IsNpgsql = IsGuardedByIsNpgsql(invocation),
+                    IsMySql = IsGuardedByIsMySql(invocation),
+                    ForeignKeyColumn = ReadFirstArrayElement(invocation, "columns"),
                 };
 
             case "AddForeignKey":
@@ -137,7 +146,11 @@ internal static class MigrationOperationReader
                     ReadName(invocation, "table"),
                     ReadName(invocation, "name"),
                     newName: null,
-                    location);
+                    location)
+                {
+                    ForeignKeyColumn = ReadFirstArrayElement(invocation, "columns"),
+                    OnDeleteCascade = IsCascade(invocation),
+                };
 
             case "AddCheckConstraint":
                 return new MigrationOperation(
@@ -217,7 +230,83 @@ internal static class MigrationOperationReader
                     // else (a variable, File.ReadAllText, a resource) is not a compile-time
                     // constant and comes back null, so BW010 stays silent for it.
                     SqlText = ReadOptionalText(invocation, "sql"),
+                    SqlSuppressesTransaction = ReadBool(invocation, "suppressTransaction"),
+                    IsNpgsql = IsGuardedByIsNpgsql(invocation),
+                    IsMySql = IsGuardedByIsMySql(invocation),
                 };
+
+            case "InsertData":
+                return new MigrationOperation(
+                    MigrationOperationKind.InsertData,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    column: null,
+                    newName: null,
+                    location)
+                {
+                    RowCount = ReadRowCount(invocation, "values"),
+                };
+
+            case "UpdateData":
+                return new MigrationOperation(
+                    MigrationOperationKind.UpdateData,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    column: null,
+                    newName: null,
+                    location)
+                {
+                    RowCount = ReadRowCount(invocation, "keyValues") ?? ReadRowCount(invocation, "values"),
+                };
+
+            case "DeleteData":
+                return new MigrationOperation(
+                    MigrationOperationKind.DeleteData,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    column: null,
+                    newName: null,
+                    location)
+                {
+                    RowCount = ReadRowCount(invocation, "keyValues"),
+                };
+
+            case "DropSchema":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropSchema,
+                    schema: null,
+                    ReadName(invocation, "name"),
+                    column: null,
+                    newName: null,
+                    location);
+
+            case "DropSequence":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropSequence,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "name"),
+                    column: null,
+                    newName: null,
+                    location);
+
+            case "AlterSequence":
+            case "RestartSequence":
+                return new MigrationOperation(
+                    MigrationOperationKind.AlterSequence,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "name"),
+                    column: null,
+                    newName: null,
+                    location);
+
+            case "AlterDatabase":
+                return new MigrationOperation(
+                    MigrationOperationKind.AlterDatabase,
+                    schema: null,
+                    table: string.Empty,
+                    column: null,
+                    newName: null,
+                    location);
 
             default:
                 return null;
@@ -361,5 +450,155 @@ internal static class MigrationOperationReader
         var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == parameterName);
         var constant = argument?.Value.ConstantValue;
         return constant is { HasValue: true, Value: string text } ? text : null;
+    }
+
+    /// <summary>
+    /// True when the call sits inside an <c>if (migrationBuilder.IsMySql())</c> branch, the same
+    /// pattern <see cref="IsGuardedByIsNpgsql"/> uses for PostgreSQL.
+    /// </summary>
+    private static bool IsGuardedByIsMySql(IInvocationOperation invocation)
+    {
+        foreach (var ifStatement in invocation.Syntax.Ancestors().OfType<IfStatementSyntax>())
+        {
+            if (ifStatement.Condition.DescendantNodesAndSelf()
+                .OfType<InvocationExpressionSyntax>()
+                .Any(candidate => candidate.Expression switch
+                {
+                    MemberAccessExpressionSyntax member => member.Name.Identifier.ValueText == "IsMySql",
+                    IdentifierNameSyntax identifier => identifier.Identifier.ValueText == "IsMySql",
+                    _ => false,
+                }))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The first element of a constant <c>string[] { ... }</c> array argument, or null.</summary>
+    private static string? ReadFirstArrayElement(IInvocationOperation invocation, string parameterName)
+    {
+        var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == parameterName);
+        if (argument?.Value is not IArrayCreationOperation { Initializer.ElementValues: { Length: > 0 } elements })
+        {
+            return null;
+        }
+
+        var constant = elements[0].ConstantValue;
+        return constant is { HasValue: true, Value: string text } ? text : null;
+    }
+
+    /// <summary>
+    /// True when <c>onDelete</c> was passed <c>ReferentialAction.Cascade</c> (constant value 1)
+    /// or the equivalent literal int.
+    /// </summary>
+    private static bool IsCascade(IInvocationOperation invocation)
+    {
+        var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == "onDelete");
+        if (argument is null)
+        {
+            return false;
+        }
+
+        var value = argument.Value;
+        while (value is IConversionOperation conversion)
+        {
+            value = conversion.Operand;
+        }
+
+        // ReferentialAction.Cascade is field ordinal 1; a direct field reference also matches by name.
+        if (value is IFieldReferenceOperation { Field.Name: "Cascade" })
+        {
+            return true;
+        }
+
+        var constant = value.ConstantValue;
+        return constant is { HasValue: true, Value: int intValue } && intValue == 1;
+    }
+
+    /// <summary>
+    /// True when <paramref name="parameterName"/> is a recognizable constant placeholder: a
+    /// numeric zero, an empty string, or <c>Guid.Empty</c>.
+    /// </summary>
+    private static bool IsPlaceholderDefault(IInvocationOperation invocation, string parameterName)
+    {
+        var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == parameterName);
+        if (argument is null || argument.IsImplicit)
+        {
+            return false;
+        }
+
+        var value = argument.Value;
+        while (value is IConversionOperation conversion)
+        {
+            value = conversion.Operand;
+        }
+
+        if (value is IFieldReferenceOperation { Field.Name: "Empty", Field.ContainingType.Name: "Guid" })
+        {
+            return true;
+        }
+
+        var constant = value.ConstantValue;
+        return constant.HasValue && constant.Value switch
+        {
+            string s => s.Length == 0,
+            int i => i == 0,
+            long l => l == 0,
+            short sh => sh == 0,
+            byte b => b == 0,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Collects the names from every <c>.Annotation(name, value)</c> (or <c>.OldAnnotation</c>
+    /// when <paramref name="old"/> is true) chained onto this invocation, following the fluent
+    /// chain outward through as many links as are present.
+    /// </summary>
+    private static ImmutableHashSet<string> ReadChainedAnnotationNames(IInvocationOperation invocation, bool old)
+    {
+        var names = ImmutableHashSet.CreateBuilder<string>();
+        var methodName = old ? "OldAnnotation" : "Annotation";
+        IOperation? current = invocation.Parent;
+        while (current is IInvocationOperation outer)
+        {
+            if (outer.TargetMethod.Name == methodName && ReadConstant(outer, "name") is string name)
+            {
+                names.Add(name);
+            }
+
+            // Keep following the chain even past unrelated calls (e.g. the other annotation kind)
+            // so `.Annotation(...).OldAnnotation(...)` and any order of both are both captured.
+            current = outer.Parent is IInvocationOperation ? outer.Parent : null;
+        }
+
+        return names.ToImmutable();
+    }
+
+    /// <summary>
+    /// Counts the rows in a constant row-data array argument (<c>InsertData</c>'s <c>values</c>,
+    /// <c>UpdateData</c>'s <c>keyValues</c>/<c>values</c>, <c>DeleteData</c>'s <c>keyValues</c>):
+    /// a 2-D array creation's outer length when it is a literal size, or a jagged/1-D array
+    /// creation's element count. Null when the row count is not statically knowable.
+    /// </summary>
+    private static int? ReadRowCount(IInvocationOperation invocation, string parameterName)
+    {
+        var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == parameterName);
+        if (argument?.Value is not IArrayCreationOperation arrayCreation)
+        {
+            return null;
+        }
+
+        // A 2-D `object[,]` (EF's default multi-row shape): the first dimension size, if constant.
+        if (arrayCreation.DimensionSizes.Length == 2)
+        {
+            var sizeConstant = arrayCreation.DimensionSizes[0].ConstantValue;
+            return sizeConstant is { HasValue: true, Value: int size } ? size : null;
+        }
+
+        // A jagged `object[][]` or a single-row `object[]`: count the initializer's elements.
+        return arrayCreation.Initializer?.ElementValues.Length;
     }
 }

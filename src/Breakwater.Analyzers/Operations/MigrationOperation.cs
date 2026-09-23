@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Analyzers.Operations;
@@ -118,4 +119,58 @@ internal sealed class MigrationOperation
     /// the content is not statically knowable, so it does not guess.
     /// </summary>
     public string? SqlText { get; init; }
+
+    /// <summary>True when <c>Sql(..., suppressTransaction: true)</c> was passed.</summary>
+    public bool SqlSuppressesTransaction { get; init; }
+
+    // InsertData / UpdateData / DeleteData details.
+
+    /// <summary>
+    /// The number of rows the call statically provides, when it can be counted from an array
+    /// initializer; null when the row count is not statically knowable (a variable, a method
+    /// call, ...), per "silent when unsure".
+    /// </summary>
+    public int? RowCount { get; init; }
+
+    // AddForeignKey details.
+
+    /// <summary>
+    /// The first entry of the <c>columns</c> argument, when it is a constant array. Used by
+    /// <c>AddForeignKey</c> (the referencing column, for BW025) and reused as-is by
+    /// <c>CreateIndex</c> (the first indexed column, for BW027).
+    /// </summary>
+    public string? ForeignKeyColumn { get; init; }
+
+    /// <summary>True when <c>onDelete</c> was passed <c>ReferentialAction.Cascade</c> (or the equivalent int).</summary>
+    public bool OnDeleteCascade { get; init; }
+
+    /// <summary>
+    /// True when <see cref="ForeignKeyColumn"/> was added earlier in the same migration with a
+    /// constant placeholder default (<c>0</c>, <c>""</c>, <c>Guid.Empty</c>). Computed by
+    /// <see cref="Operations.MigrationContext"/>, not the reader, since it depends on another
+    /// operation in the same method.
+    /// </summary>
+    public bool ForeignKeyColumnHasPlaceholderDefault { get; init; }
+
+    // AddColumn placeholder-default detail (for BW025).
+
+    /// <summary>
+    /// True when <c>defaultValue</c> is a recognizable constant placeholder: <c>0</c> (or another
+    /// numeric zero), an empty string, or <c>Guid.Empty</c>.
+    /// </summary>
+    public bool HasPlaceholderDefaultValue { get; init; }
+
+    // AlterColumn / CreateIndex chained annotation details (for BW026).
+
+    /// <summary>Names of every <c>.Annotation(name, value)</c> chained onto this call.</summary>
+    public ImmutableHashSet<string> AnnotationNames { get; init; } = ImmutableHashSet<string>.Empty;
+
+    /// <summary>Names of every <c>.OldAnnotation(name, value)</c> chained onto this call.</summary>
+    public ImmutableHashSet<string> OldAnnotationNames { get; init; } = ImmutableHashSet<string>.Empty;
+
+    /// <summary>
+    /// True when the call sits inside an <c>if (migrationBuilder.IsMySql())</c> guard, the same
+    /// heuristic <see cref="IsNpgsql"/> uses for PostgreSQL.
+    /// </summary>
+    public bool IsMySql { get; init; }
 }

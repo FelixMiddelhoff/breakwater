@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Breakwater.Analyzers.Tests.Support;
 using Xunit;
@@ -27,7 +28,9 @@ public class CreateIndexOnlineRuleTests
             migrationBuilder.CreateIndex(name: "IX_Users_Email", table: "Users", columns: new[] { "Email" }, unique: true);
             """));
 
-        Assert.Equal("BW007", Assert.Single(diagnostics).Id);
+        // Also unique, so BW027 (fails on existing duplicates) legitimately fires alongside
+        // BW007 (blocks writes while building): different risks, not the same problem.
+        Assert.Equal(new[] { "BW007", "BW027" }, diagnostics.Select(d => d.Id).OrderBy(id => id));
     }
 
     [Fact]

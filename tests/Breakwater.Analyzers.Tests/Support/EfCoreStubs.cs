@@ -37,7 +37,7 @@ internal static class EfCoreStubs
                     int? scale = null,
                     string? collation = null) { }
 
-                public virtual void AlterColumn<T>(
+                public virtual OperationBuilder AlterColumn<T>(
                     string name,
                     string table,
                     string? type = null,
@@ -54,7 +54,7 @@ internal static class EfCoreStubs
                     bool oldNullable = false,
                     int? oldPrecision = null,
                     int? oldScale = null,
-                    string? oldCollation = null) { }
+                    string? oldCollation = null) => new OperationBuilder();
 
                 public bool SuppressTransaction { get; set; }
 
@@ -101,16 +101,52 @@ internal static class EfCoreStubs
                 public virtual void DropForeignKey(string name, string table, string? schema = null) { }
 
                 public virtual void Sql(string sql, bool suppressTransaction = false) { }
+
+                public virtual void InsertData(string table, string[] columns, object[,] values, string? schema = null) { }
+                public virtual void InsertData(string table, string column, object[] values, string? schema = null) { }
+
+                public virtual void UpdateData(string table, string keyColumn, object[] keyValues, string[] columns, object[,] values, string? schema = null) { }
+                public virtual void UpdateData(string table, string keyColumn, object[] keyValues, string column, object[] values, string? schema = null) { }
+
+                public virtual void DeleteData(string table, string keyColumn, object[] keyValues, string? schema = null) { }
+                public virtual void DeleteData(string table, string[] keyColumns, object[,] keyValues, string? schema = null) { }
+
+                public virtual void DropSchema(string name) { }
+                public virtual void DropSequence(string name, string? schema = null) { }
+                public virtual void AlterSequence(string name, string? schema = null, int? incrementBy = null) { }
+                public virtual void RestartSequence(string name, string? schema = null, long? startValue = null) { }
+                public virtual void AlterDatabase() { }
             }
 
             public class OperationBuilder
             {
                 public virtual OperationBuilder Annotation(string name, object? value) => this;
+                public virtual OperationBuilder OldAnnotation(string name, object? value) => this;
+            }
+
+            [System.AttributeUsage(System.AttributeTargets.Class)]
+            public sealed class MigrationAttribute : System.Attribute
+            {
+                public MigrationAttribute(string id) { Id = id; }
+                public string Id { get; }
             }
 
             public static class NpgsqlMigrationBuilderExtensions
             {
                 public static bool IsNpgsql(this MigrationBuilder builder) => true;
+            }
+
+            public static class MySqlMigrationBuilderExtensions
+            {
+                public static bool IsMySql(this MigrationBuilder builder) => true;
+            }
+        }
+
+        namespace Microsoft.EntityFrameworkCore.Infrastructure
+        {
+            public class DatabaseFacade
+            {
+                public virtual bool EnsureCreated() => true;
             }
         }
         """;

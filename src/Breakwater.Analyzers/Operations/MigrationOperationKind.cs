@@ -20,4 +20,11 @@ internal enum MigrationOperationKind
     DropCheckConstraint,
     DropForeignKey,
     Sql,
+    InsertData,
+    UpdateData,
+    DeleteData,
+    DropSchema,
+    DropSequence,
+    AlterSequence,
+    AlterDatabase,
 }

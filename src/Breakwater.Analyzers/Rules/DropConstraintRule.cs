@@ -16,7 +16,8 @@ internal sealed class DropConstraintRule : IMigrationRule
         "Once the constraint is gone, nothing stops rows that violate it, and an old application " +
         "version (or code that never expected the constraint to disappear) may depend on it still " +
         "holding. Confirm the constraint is really unused before dropping it, and consider keeping the " +
-        "backing index if queries still rely on it.");
+        "backing index if queries still rely on it.",
+        severity: RuleDescriptors.Suggestion);
 
     public object[]? Check(MigrationOperation operation, MigrationContext context)
     {

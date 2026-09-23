@@ -9,6 +9,7 @@ internal static class MigrationSnippet
         return $$"""
             using Microsoft.EntityFrameworkCore.Migrations;
 
+            [Migration("20260101000000_AddThings")]
             public class AddThings : Migration
             {
                 protected override void Up(MigrationBuilder migrationBuilder)
@@ -27,6 +28,7 @@ internal static class MigrationSnippet
         return $$"""
             using Microsoft.EntityFrameworkCore.Migrations;
 
+            [Migration("20260101000000_AddThings")]
             public class AddThings : Migration
             {
                 protected override void Up(MigrationBuilder migrationBuilder) { }

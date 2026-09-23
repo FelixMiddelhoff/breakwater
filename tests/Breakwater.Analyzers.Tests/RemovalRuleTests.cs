@@ -109,6 +109,7 @@ public class RemovalRuleTests
         var source = """
             using Microsoft.EntityFrameworkCore.Migrations;
 
+            [Migration("20260101000000_Renamed")]
             public class Renamed : Migration
             {
                 protected override void Up(MigrationBuilder mb) { mb.DropTable("Orders"); }
