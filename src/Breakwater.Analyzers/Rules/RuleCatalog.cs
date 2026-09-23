@@ -39,7 +39,9 @@ internal static class RuleCatalog
         new DataVolumeRule(),
         new SchemaAndDataChangeRule(),
         new PartialFailureRiskRule(),
-        new MixedRiskyOperationsRule());
+        new MixedRiskyOperationsRule(),
+        new SqlStructuralChangeRule(),
+        new SqlIdempotentRedefineRule());
 
     /// <summary>
     /// Rules that can all fire on the same <c>AlterColumn</c> call. Only the first match, in the
@@ -58,5 +60,7 @@ internal static class RuleCatalog
         new Dictionary<string, ImmutableArray<string>>
         {
             ["BW023"] = ImmutableArray.Create("BW001"),
+            ["BW035"] = ImmutableArray.Create("BW010"),
+            ["BW036"] = ImmutableArray.Create("BW010"),
         }.ToImmutableDictionary();
 }
