@@ -16,8 +16,9 @@ internal sealed class CascadeDeleteRule : IMigrationRule
         "AddForeignKey '{0}' on '{1}' cascades deletes: removing a parent row also removes every matching child row",
         "A cascade delete can silently remove far more data than the person running the delete " +
         "expected, and SQL Server rejects a schema with more than one cascade path into the same table. " +
-        "Confirm this is intentional; consider ReferentialAction.Restrict and deleting children explicitly.",
-        isEnabledByDefault: false);
+        "Confirm this is intentional; consider ReferentialAction.Restrict and deleting children explicitly.");
+    // isEnabledByDefault stays true: gated on breakwater_profile in MigrationAnalyzer instead - see
+    // PostgresLockTimeoutRule's comment.
 
     public object[]? Check(MigrationOperation operation, MigrationContext context)
     {

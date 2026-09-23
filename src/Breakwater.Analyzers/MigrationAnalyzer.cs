@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Breakwater.Analyzers.Operations;
 using Breakwater.Analyzers.Rules;
+using Breakwater.Analyzers.Suppression;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -64,8 +65,11 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Read once: breakwater_profile cannot change mid-compilation.
+        var profile = BreakwaterProfileReader.Read(context.Options.AnalyzerConfigOptionsProvider);
+
         context.RegisterOperationAction(
-            operationContext => AnalyzeInvocation(operationContext, migrationBuilder),
+            operationContext => AnalyzeInvocation(operationContext, migrationBuilder, profile),
             OperationKind.Invocation);
 
         var migrationType = context.Compilation.GetTypeByMetadataName(MigrationMetadataName);
@@ -73,15 +77,15 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         if (migrationType is not null)
         {
             DiscoverabilityRules.Register(context, migrationType, migrationAttributeType);
-            DownEmptyRule.Register(context, migrationType);
+            DownEmptyRule.Register(context, migrationType, profile);
         }
     }
 
-    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder)
+    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder, BreakwaterProfile profile)
     {
         try
         {
-            AnalyzeInvocationCore(context, migrationBuilder);
+            AnalyzeInvocationCore(context, migrationBuilder, profile);
         }
         catch (System.Exception ex)
         {
@@ -94,7 +98,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeInvocationCore(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder)
+    private static void AnalyzeInvocationCore(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder, BreakwaterProfile profile)
     {
         var invocation = (IInvocationOperation)context.Operation;
         var enclosingMethod = invocation.Syntax.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
@@ -167,11 +171,49 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
 
         foreach (var rule in RuleCatalog.All)
         {
-            if (results.TryGetValue(rule.Descriptor.Id, out var messageArguments))
+            if (!results.TryGetValue(rule.Descriptor.Id, out var messageArguments))
             {
-                context.ReportDiagnostic(Diagnostic.Create(rule.Descriptor, operation.Location, messageArguments));
+                continue;
             }
+
+            // "Off (strict)" tier: silent under the default recommended profile, reported under strict.
+            if (BreakwaterProfileReader.StrictOnlyRuleIds.Contains(rule.Descriptor.Id) && profile != BreakwaterProfile.Strict)
+            {
+                continue;
+            }
+
+            var suppression = SuppressionComment.Check(invocation.Syntax, rule.Descriptor.Id);
+            if (suppression == SuppressionComment.Result.SuppressedWithReason)
+            {
+                continue;
+            }
+
+            var descriptor = suppression == SuppressionComment.Result.ReasonRequired
+                ? ReasonRequiredDescriptor(rule.Descriptor)
+                : rule.Descriptor;
+            context.ReportDiagnostic(Diagnostic.Create(descriptor, operation.Location, messageArguments));
         }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DiagnosticDescriptor> ReasonRequiredDescriptors = new();
+
+    /// <summary>
+    /// A <c>// breakwater: allow BWxxx</c> comment with no reason does not suppress: the original
+    /// diagnostic stays and its message says a reason is required, per
+    /// <c>breakwater-rules.md</c>'s configuration section.
+    /// </summary>
+    private static DiagnosticDescriptor ReasonRequiredDescriptor(DiagnosticDescriptor original)
+    {
+        return ReasonRequiredDescriptors.GetOrAdd(original.Id, _ => new DiagnosticDescriptor(
+            original.Id,
+            original.Title,
+            original.MessageFormat + " (suppression comment ignored: requires a non-empty reason)",
+            original.Category,
+            original.DefaultSeverity,
+            original.IsEnabledByDefault,
+            original.Description,
+            original.HelpLinkUri,
+            original.CustomTags.ToArray()));
     }
 
     /// <summary>

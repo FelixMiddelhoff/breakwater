@@ -1,4 +1,5 @@
 using System.Linq;
+using Breakwater.Analyzers.Suppression;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -21,18 +22,24 @@ internal static class DownEmptyRule
         "Migration '{0}' cannot be rolled back: Down is empty or throws NotSupportedException",
         "Without a working Down, a bad deploy cannot be rolled back with 'dotnet ef database update' " +
         "to the previous migration; someone has to write and test the reverse by hand under pressure. " +
-        "Informational: many teams intentionally never roll back and can ignore this.",
-        isEnabledByDefault: false);
+        "Informational: many teams intentionally never roll back and can ignore this.");
+    // isEnabledByDefault stays true: gated on breakwater_profile below instead of Roslyn's own
+    // descriptor-level suppression - see PostgresLockTimeoutRule's comment for why.
 
-    public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol migrationType)
+    public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol migrationType, BreakwaterProfile profile)
     {
         context.RegisterSyntaxNodeAction(
-            nodeContext => Analyze(nodeContext, migrationType),
+            nodeContext => Analyze(nodeContext, migrationType, profile),
             SyntaxKind.MethodDeclaration);
     }
 
-    private static void Analyze(SyntaxNodeAnalysisContext context, INamedTypeSymbol migrationType)
+    private static void Analyze(SyntaxNodeAnalysisContext context, INamedTypeSymbol migrationType, BreakwaterProfile profile)
     {
+        if (profile != BreakwaterProfile.Strict)
+        {
+            return;
+        }
+
         var method = (MethodDeclarationSyntax)context.Node;
         if (method.Identifier.ValueText != "Down")
         {

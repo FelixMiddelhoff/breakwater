@@ -29,8 +29,11 @@ internal sealed class PostgresLockTimeoutRule : IMigrationRule
         "Without a lock_timeout, this DDL statement waits indefinitely for its lock, and every later " +
         "query on the same table queues up behind it once it starts waiting. Run " +
         "\"SET lock_timeout = '2s';\" (an example value) via Sql(...) before the DDL, and retry the " +
-        "migration if it times out.",
-        isEnabledByDefault: false);
+        "migration if it times out.");
+    // isEnabledByDefault stays true: "off (strict) only" is enforced in MigrationAnalyzer by
+    // gating on breakwater_profile (see BreakwaterProfileReader.StrictOnlyRuleIds), not by Roslyn's
+    // own descriptor-level suppression - that would also suppress the diagnostic under a strict
+    // profile with no way for Breakwater's own code to override it.
 
     public object[]? Check(MigrationOperation operation, MigrationContext context)
     {

@@ -18,7 +18,10 @@ internal static class AnalyzerRunner
     /// Runs the analyzer over <paramref name="source"/> and returns only Breakwater diagnostics,
     /// ordered by position. The snippet must compile without errors.
     /// </summary>
-    public static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(string source, bool includeEfCoreStubs = true)
+    public static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
+        string source,
+        bool includeEfCoreStubs = true,
+        System.Collections.Generic.IReadOnlyDictionary<string, string>? globalOptions = null)
     {
         var trees = includeEfCoreStubs
             ? new[] { Parse(EfCoreStubs.Source), Parse(source) }
@@ -36,7 +39,11 @@ internal static class AnalyzerRunner
             throw new InvalidOperationException("Test snippet does not compile:" + Environment.NewLine + string.Join(Environment.NewLine, compileErrors));
         }
 
-        var withAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MigrationAnalyzer()));
+        var analyzerOptions = new AnalyzerOptions(
+            ImmutableArray<AdditionalText>.Empty,
+            new TestAnalyzerConfigOptionsProvider(globalOptions ?? new System.Collections.Generic.Dictionary<string, string>()));
+
+        var withAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MigrationAnalyzer()), analyzerOptions);
         var diagnostics = await withAnalyzers.GetAnalyzerDiagnosticsAsync();
         var crash = diagnostics.FirstOrDefault(d => d.Id == "AD0001");
         if (crash is not null)
