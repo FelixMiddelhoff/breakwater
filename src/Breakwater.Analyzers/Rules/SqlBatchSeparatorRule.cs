@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Breakwater.Analyzers.Configuration;
 using Breakwater.Analyzers.Operations;
 using Microsoft.CodeAnalysis;
 
@@ -27,6 +28,14 @@ internal sealed class SqlBatchSeparatorRule : IMigrationRule
     public object[]? Check(MigrationOperation operation, MigrationContext context)
     {
         if (operation.Kind != MigrationOperationKind.Sql || operation.SqlText is not { } sql)
+        {
+            return null;
+        }
+
+        // GO/USE are SQL Server-only syntax; a known non-SQL Server provider (from an explicit
+        // breakwater_provider override, or an auto-detected guard/annotation) means this text is
+        // not actually being sent to SQL Server, so stay silent.
+        if (operation.DetectedProvider is BreakwaterDatabaseProvider.Postgres or BreakwaterDatabaseProvider.MySql or BreakwaterDatabaseProvider.Sqlite)
         {
             return null;
         }

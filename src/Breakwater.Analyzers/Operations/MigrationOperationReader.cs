@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
+using Breakwater.Analyzers.Configuration;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
@@ -13,7 +15,17 @@ internal static class MigrationOperationReader
     /// Returns null when the call is not a migration operation Breakwater knows.
     /// Arguments are found by parameter name, so named and reordered arguments work.
     /// </summary>
-    public static MigrationOperation? Read(IInvocationOperation invocation, INamedTypeSymbol migrationBuilderType)
+    /// <param name="providerOverride">
+    /// The configured <c>breakwater_provider</c> value. When not <c>Auto</c>, it is trusted
+    /// outright for this operation's <see cref="MigrationOperation.IsNpgsql"/>/<see cref="MigrationOperation.IsMySql"/>/
+    /// <see cref="MigrationOperation.DetectedProvider"/> - the guard-detection heuristic below is
+    /// skipped entirely, so provider-aware rules fire even without an <c>if (migrationBuilder.IsXxx())</c>
+    /// guard around the call.
+    /// </param>
+    public static MigrationOperation? Read(
+        IInvocationOperation invocation,
+        INamedTypeSymbol migrationBuilderType,
+        BreakwaterDatabaseProvider providerOverride = BreakwaterDatabaseProvider.Auto)
     {
         var method = invocation.TargetMethod;
         if (!SymbolEqualityComparer.Default.Equals(method.ContainingType, migrationBuilderType))
@@ -22,6 +34,17 @@ internal static class MigrationOperationReader
         }
 
         var location = invocation.Syntax.GetLocation();
+        var operation = ReadCore(invocation, method, location);
+        if (operation is not null)
+        {
+            ApplyProvider(operation, invocation, providerOverride);
+        }
+
+        return operation;
+    }
+
+    private static MigrationOperation? ReadCore(IInvocationOperation invocation, IMethodSymbol method, Location location)
+    {
         switch (method.Name)
         {
             case "DropColumn":
@@ -310,6 +333,74 @@ internal static class MigrationOperationReader
 
             default:
                 return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves <see cref="MigrationOperation.DetectedProvider"/> (and the legacy
+    /// <see cref="MigrationOperation.IsNpgsql"/>/<see cref="MigrationOperation.IsMySql"/> booleans
+    /// every existing provider-aware rule already reads) for one operation.
+    /// </summary>
+    private static void ApplyProvider(MigrationOperation operation, IInvocationOperation invocation, BreakwaterDatabaseProvider providerOverride)
+    {
+        if (providerOverride != BreakwaterDatabaseProvider.Auto)
+        {
+            // An explicit override is trusted outright: skip the guard-detection heuristic
+            // entirely, so rules fire even when the migration does not wrap the call in an
+            // `if (migrationBuilder.IsXxx())` guard.
+            operation.DetectedProvider = providerOverride;
+            operation.IsNpgsql = providerOverride == BreakwaterDatabaseProvider.Postgres;
+            operation.IsMySql = providerOverride == BreakwaterDatabaseProvider.MySql;
+            return;
+        }
+
+        // Auto: the guard heuristic already set IsNpgsql/IsMySql for the operation kinds that
+        // support it (see the switch above).
+        if (operation.IsNpgsql)
+        {
+            operation.DetectedProvider = BreakwaterDatabaseProvider.Postgres;
+            return;
+        }
+
+        if (operation.IsMySql)
+        {
+            operation.DetectedProvider = BreakwaterDatabaseProvider.MySql;
+            return;
+        }
+
+        // Fall back to provider-specific chained annotations (already captured for AlterColumn/
+        // CreateIndex; read directly here for kinds that do not capture AnnotationNames).
+        var annotationNames = operation.AnnotationNames.Count > 0 || operation.OldAnnotationNames.Count > 0
+            ? operation.AnnotationNames.Concat(operation.OldAnnotationNames)
+            : ReadChainedAnnotationNames(invocation, old: false).Concat(ReadChainedAnnotationNames(invocation, old: true));
+
+        foreach (var name in annotationNames)
+        {
+            if (name.StartsWith("Npgsql:", StringComparison.Ordinal))
+            {
+                operation.DetectedProvider = BreakwaterDatabaseProvider.Postgres;
+                operation.IsNpgsql = true;
+                return;
+            }
+
+            if (name.StartsWith("SqlServer:", StringComparison.Ordinal))
+            {
+                operation.DetectedProvider = BreakwaterDatabaseProvider.SqlServer;
+                return;
+            }
+
+            if (name.StartsWith("MySql:", StringComparison.OrdinalIgnoreCase))
+            {
+                operation.DetectedProvider = BreakwaterDatabaseProvider.MySql;
+                operation.IsMySql = true;
+                return;
+            }
+
+            if (name.StartsWith("Sqlite:", StringComparison.OrdinalIgnoreCase))
+            {
+                operation.DetectedProvider = BreakwaterDatabaseProvider.Sqlite;
+                return;
+            }
         }
     }
 

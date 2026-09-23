@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Breakwater.Analyzers.Configuration;
 using Breakwater.Analyzers.Operations;
 using Breakwater.Analyzers.Rules;
 using Breakwater.Analyzers.Suppression;
@@ -65,15 +66,16 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Read once: breakwater_profile cannot change mid-compilation.
-        var profile = BreakwaterProfileReader.Read(context.Options.AnalyzerConfigOptionsProvider);
+        // Read once: none of the breakwater_* global options can change mid-compilation.
+        var configuration = BreakwaterConfiguration.Read(context.Options.AnalyzerConfigOptionsProvider);
+        var profile = configuration.Profile;
+        var migrationAttributeType = context.Compilation.GetTypeByMetadataName(MigrationAttributeMetadataName);
 
         context.RegisterOperationAction(
-            operationContext => AnalyzeInvocation(operationContext, migrationBuilder, profile),
+            operationContext => AnalyzeInvocation(operationContext, migrationBuilder, configuration, migrationAttributeType),
             OperationKind.Invocation);
 
         var migrationType = context.Compilation.GetTypeByMetadataName(MigrationMetadataName);
-        var migrationAttributeType = context.Compilation.GetTypeByMetadataName(MigrationAttributeMetadataName);
         if (migrationType is not null)
         {
             DiscoverabilityRules.Register(context, migrationType, migrationAttributeType);
@@ -81,11 +83,15 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder, BreakwaterProfile profile)
+    private static void AnalyzeInvocation(
+        OperationAnalysisContext context,
+        INamedTypeSymbol migrationBuilder,
+        BreakwaterConfiguration configuration,
+        INamedTypeSymbol? migrationAttributeType)
     {
         try
         {
-            AnalyzeInvocationCore(context, migrationBuilder, profile);
+            AnalyzeInvocationCore(context, migrationBuilder, configuration, migrationAttributeType);
         }
         catch (System.Exception ex)
         {
@@ -98,7 +104,11 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeInvocationCore(OperationAnalysisContext context, INamedTypeSymbol migrationBuilder, BreakwaterProfile profile)
+    private static void AnalyzeInvocationCore(
+        OperationAnalysisContext context,
+        INamedTypeSymbol migrationBuilder,
+        BreakwaterConfiguration configuration,
+        INamedTypeSymbol? migrationAttributeType)
     {
         var invocation = (IInvocationOperation)context.Operation;
         var enclosingMethod = invocation.Syntax.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
@@ -107,7 +117,18 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var operation = MigrationOperationReader.Read(invocation, migrationBuilder);
+        // breakwater_since_migration: skip migrations at or before the configured id entirely -
+        // the adoption path for existing repos with production migration history. Migration ids
+        // are EF's timestamp-prefixed strings ("20260115120000_InitialCreate"); string comparison
+        // matches EF's own discovery/apply ordering. An unreadable/missing id is never skipped.
+        if (configuration.SinceMigrationId is { } since
+            && GetEnclosingMigrationId(invocation, migrationAttributeType) is { } migrationId
+            && string.CompareOrdinal(migrationId, since) <= 0)
+        {
+            return;
+        }
+
+        var operation = MigrationOperationReader.Read(invocation, migrationBuilder, configuration.Provider);
         if (operation is null)
         {
             return;
@@ -115,7 +136,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
 
         var migrationContext = enclosingMethod is null
             ? new MigrationContext(new HashSet<string>())
-            : ContextCache.GetValue(enclosingMethod, node => BuildContext(node, invocation.SemanticModel!, migrationBuilder));
+            : ContextCache.GetValue(enclosingMethod, node => BuildContext(node, invocation.SemanticModel!, migrationBuilder, configuration.Provider));
 
         var results = new Dictionary<string, object[]>();
         foreach (var rule in RuleCatalog.All)
@@ -177,7 +198,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             }
 
             // "Off (strict)" tier: silent under the default recommended profile, reported under strict.
-            if (BreakwaterProfileReader.StrictOnlyRuleIds.Contains(rule.Descriptor.Id) && profile != BreakwaterProfile.Strict)
+            if (BreakwaterProfileReader.StrictOnlyRuleIds.Contains(rule.Descriptor.Id) && configuration.Profile != BreakwaterProfile.Strict)
             {
                 continue;
             }
@@ -191,6 +212,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             var descriptor = suppression == SuppressionComment.Result.ReasonRequired
                 ? ReasonRequiredDescriptor(rule.Descriptor)
                 : rule.Descriptor;
+            descriptor = ApplySeverityDowngrades(descriptor, rule.Descriptor.Id, operation, configuration);
             context.ReportDiagnostic(Diagnostic.Create(descriptor, operation.Location, messageArguments));
         }
     }
@@ -214,6 +236,82 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             original.Description,
             original.HelpLinkUri,
             original.CustomTags.ToArray()));
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DiagnosticDescriptor> InfoSeverityDescriptors = new();
+
+    /// <summary>
+    /// Downgrades a diagnostic to Info when <c>breakwater_deploy_model = downtime_ok</c> softens
+    /// this rule id, or when the operation's table is listed in <c>breakwater_small_tables</c> and
+    /// this rule id is one of the table-lock/lock-duration rules that setting softens. Only ever
+    /// downgrades (never raises) the severity, and never changes the descriptor when neither
+    /// condition applies.
+    /// </summary>
+    private static DiagnosticDescriptor ApplySeverityDowngrades(
+        DiagnosticDescriptor descriptor,
+        string ruleId,
+        MigrationOperation operation,
+        BreakwaterConfiguration configuration)
+    {
+        var deployModelSoftens = configuration.DeployModel == BreakwaterDeployModel.DowntimeOk
+            && BreakwaterConfiguration.DeployModelSensitiveRuleIds.Contains(ruleId);
+
+        var smallTableSoftens = BreakwaterConfiguration.SmallTableSensitiveRuleIds.Contains(ruleId)
+            && (configuration.SmallTables.Contains(operation.Table) || configuration.SmallTables.Contains(operation.QualifiedTable));
+
+        if (!deployModelSoftens && !smallTableSoftens)
+        {
+            return descriptor;
+        }
+
+        if (descriptor.DefaultSeverity == DiagnosticSeverity.Info)
+        {
+            return descriptor;
+        }
+
+        return InfoSeverityDescriptors.GetOrAdd(descriptor.Id + ":" + descriptor.MessageFormat, _ => new DiagnosticDescriptor(
+            descriptor.Id,
+            descriptor.Title,
+            descriptor.MessageFormat,
+            descriptor.Category,
+            DiagnosticSeverity.Info,
+            descriptor.IsEnabledByDefault,
+            descriptor.Description,
+            descriptor.HelpLinkUri,
+            descriptor.CustomTags.ToArray()));
+    }
+
+    /// <summary>
+    /// The <c>[Migration("id")]</c> attribute's id for the class this invocation lives in, the
+    /// same attribute <see cref="DiscoverabilityRules"/> reads for BW028. Null when the enclosing
+    /// class, its attribute, or the attribute's constant constructor argument cannot be found -
+    /// <c>breakwater_since_migration</c> never skips a migration it cannot identify.
+    /// </summary>
+    private static string? GetEnclosingMigrationId(IInvocationOperation invocation, INamedTypeSymbol? migrationAttributeType)
+    {
+        var classDeclaration = invocation.Syntax.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>().FirstOrDefault();
+        if (classDeclaration is null || invocation.SemanticModel is null)
+        {
+            return null;
+        }
+
+        var typeSymbol = invocation.SemanticModel.GetDeclaredSymbol(classDeclaration);
+        if (typeSymbol is null)
+        {
+            return null;
+        }
+
+        var attribute = typeSymbol.GetAttributes().FirstOrDefault(a =>
+            migrationAttributeType is not null
+                ? SymbolEqualityComparer.Default.Equals(a.AttributeClass, migrationAttributeType)
+                : a.AttributeClass?.Name == "MigrationAttribute");
+
+        if (attribute is null || attribute.ConstructorArguments.Length == 0)
+        {
+            return null;
+        }
+
+        return attribute.ConstructorArguments[0].Value as string;
     }
 
     /// <summary>
@@ -245,7 +343,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         MigrationOperationKind.InsertData, MigrationOperationKind.UpdateData, MigrationOperationKind.DeleteData,
     };
 
-    private static MigrationContext BuildContext(SyntaxNode methodNode, SemanticModel semanticModel, INamedTypeSymbol migrationBuilder)
+    private static MigrationContext BuildContext(SyntaxNode methodNode, SemanticModel semanticModel, INamedTypeSymbol migrationBuilder, BreakwaterDatabaseProvider providerOverride)
     {
         var tablesCreated = new HashSet<string>();
         var tablesWithDropColumn = new HashSet<string>();
@@ -271,7 +369,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         foreach (var invocationSyntax in methodNode.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             if (semanticModel.GetOperation(invocationSyntax) is IInvocationOperation createTableCandidate &&
-                MigrationOperationReader.Read(createTableCandidate, migrationBuilder) is { Kind: MigrationOperationKind.CreateTable } createTableOp)
+                MigrationOperationReader.Read(createTableCandidate, migrationBuilder, providerOverride) is { Kind: MigrationOperationKind.CreateTable } createTableOp)
             {
                 tablesCreated.Add(createTableOp.QualifiedTable);
             }
@@ -284,7 +382,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
                 continue;
             }
 
-            var operation = MigrationOperationReader.Read(invocationOperation, migrationBuilder);
+            var operation = MigrationOperationReader.Read(invocationOperation, migrationBuilder, providerOverride);
             if (operation is null)
             {
                 continue;

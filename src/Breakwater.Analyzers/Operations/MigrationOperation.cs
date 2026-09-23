@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Breakwater.Analyzers.Configuration;
 using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Analyzers.Operations;
@@ -88,11 +89,19 @@ internal sealed class MigrationOperation
     public string? DefaultValueSql { get; init; }
 
     /// <summary>
-    /// True when the call is guarded by a <c>migrationBuilder.IsNpgsql()</c> check, the one
-    /// signal Breakwater currently uses to know a branch targets PostgreSQL. Not set means
-    /// "provider unknown", and provider-specific rules stay silent for it.
+    /// True when the call is guarded by a <c>migrationBuilder.IsNpgsql()</c> check (in <c>auto</c>
+    /// provider mode), or when <c>breakwater_provider = postgres</c> is configured (which trusts
+    /// the override outright, without requiring the guard). Not set means "provider unknown", and
+    /// provider-specific rules stay silent for it.
     /// </summary>
-    public bool IsNpgsql { get; init; }
+    public bool IsNpgsql { get; internal set; }
+
+    /// <summary>
+    /// The resolved provider for this operation: the configured <c>breakwater_provider</c>
+    /// override when one is set, otherwise the best guess from the guard/annotation heuristics
+    /// (<see cref="BreakwaterDatabaseProvider.Auto"/> when nothing was detected).
+    /// </summary>
+    public BreakwaterDatabaseProvider DetectedProvider { get; internal set; } = BreakwaterDatabaseProvider.Auto;
 
     // CreateIndex / constraint details.
 
@@ -169,8 +178,8 @@ internal sealed class MigrationOperation
     public ImmutableHashSet<string> OldAnnotationNames { get; init; } = ImmutableHashSet<string>.Empty;
 
     /// <summary>
-    /// True when the call sits inside an <c>if (migrationBuilder.IsMySql())</c> guard, the same
-    /// heuristic <see cref="IsNpgsql"/> uses for PostgreSQL.
+    /// True when the call sits inside an <c>if (migrationBuilder.IsMySql())</c> guard (in
+    /// <c>auto</c> mode), or when <c>breakwater_provider = mysql</c> is configured.
     /// </summary>
-    public bool IsMySql { get; init; }
+    public bool IsMySql { get; internal set; }
 }
