@@ -12,7 +12,7 @@ jobs:
   doc-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
@@ -22,7 +22,7 @@ jobs:
   link-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check relative Markdown links
         shell: pwsh
         run: ./tools/check-markdown-links.ps1
