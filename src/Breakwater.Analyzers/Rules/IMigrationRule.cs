@@ -12,5 +12,5 @@ internal interface IMigrationRule
     /// Returns the message arguments for the diagnostic when the operation is unsafe,
     /// or null when the rule has nothing to say about it.
     /// </summary>
-    object[]? Check(MigrationOperation operation);
+    object[]? Check(MigrationOperation operation, MigrationContext context);
 }

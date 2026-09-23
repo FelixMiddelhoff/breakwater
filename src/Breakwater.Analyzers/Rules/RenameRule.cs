@@ -15,7 +15,7 @@ internal sealed class RenameRule : IMigrationRule
         "old one in a later migration. EF Core generates renames by itself when you rename a property, " +
         "so check the generated migration.");
 
-    public object[]? Check(MigrationOperation operation)
+    public object[]? Check(MigrationOperation operation, MigrationContext context)
     {
         switch (operation.Kind)
         {

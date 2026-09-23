@@ -45,4 +45,51 @@ internal sealed class MigrationOperation
 
     /// <summary>The table name including its schema, as a developer would write it.</summary>
     public string QualifiedTable => Schema is null ? Table : Schema + "." + Table;
+
+    // AddColumn / AlterColumn details. Null/unset means "not known" (not a compile-time
+    // constant, or the parameter was not given), and rules must treat that as "cannot tell"
+    // rather than guessing, per the noise policy.
+
+    /// <summary>The CLR type argument of <c>AddColumn&lt;T&gt;</c> / <c>AlterColumn&lt;T&gt;</c>.</summary>
+    public string? ClrType { get; init; }
+
+    /// <summary>AlterColumn's <c>oldClrType</c>, as EF's <c>typeof(T)</c> argument, display-formatted.</summary>
+    public string? OldClrType { get; init; }
+
+    public bool Nullable { get; init; }
+
+    /// <summary>AlterColumn's <c>oldNullable</c>.</summary>
+    public bool OldNullable { get; init; }
+
+    public int? MaxLength { get; init; }
+
+    public int? OldMaxLength { get; init; }
+
+    public int? Precision { get; init; }
+
+    public int? OldPrecision { get; init; }
+
+    public int? Scale { get; init; }
+
+    public int? OldScale { get; init; }
+
+    public string? Collation { get; init; }
+
+    public string? OldCollation { get; init; }
+
+    /// <summary>True when a non-null constant (or any expression) was passed for <c>defaultValue</c>.</summary>
+    public bool HasDefaultValue { get; init; }
+
+    /// <summary>True when a non-null constant (or any expression) was passed for <c>defaultValueSql</c>.</summary>
+    public bool HasDefaultValueSql { get; init; }
+
+    /// <summary>The constant text of <c>defaultValueSql</c>, or null when absent or not a constant.</summary>
+    public string? DefaultValueSql { get; init; }
+
+    /// <summary>
+    /// True when the call is guarded by a <c>migrationBuilder.IsNpgsql()</c> check, the one
+    /// signal Breakwater currently uses to know a branch targets PostgreSQL. Not set means
+    /// "provider unknown", and provider-specific rules stay silent for it.
+    /// </summary>
+    public bool IsNpgsql { get; init; }
 }

@@ -7,4 +7,7 @@ internal enum MigrationOperationKind
     DropTable,
     RenameColumn,
     RenameTable,
+    AlterColumn,
+    AddColumn,
+    CreateTable,
 }

@@ -38,6 +38,12 @@ internal static class AnalyzerRunner
 
         var withAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MigrationAnalyzer()));
         var diagnostics = await withAnalyzers.GetAnalyzerDiagnosticsAsync();
+        var crash = diagnostics.FirstOrDefault(d => d.Id == "AD0001");
+        if (crash is not null)
+        {
+            throw new InvalidOperationException("Analyzer crashed: " + crash.GetMessage());
+        }
+
         return diagnostics
             .Where(d => d.Id.StartsWith("BW", StringComparison.Ordinal))
             .OrderBy(d => d.Location.SourceSpan.Start)

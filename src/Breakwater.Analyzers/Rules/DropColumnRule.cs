@@ -14,7 +14,7 @@ internal sealed class DropColumnRule : IMigrationRule
         "version keeps running against the new schema and fails on every query that mentions the column. " +
         "Stop using the column first, deploy, and drop it in a later migration.");
 
-    public object[]? Check(MigrationOperation operation)
+    public object[]? Check(MigrationOperation operation, MigrationContext context)
     {
         return operation.Kind == MigrationOperationKind.DropColumn
             ? new object[] { operation.QualifiedTable, operation.Column! }

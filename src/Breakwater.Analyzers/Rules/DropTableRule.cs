@@ -14,7 +14,7 @@ internal sealed class DropTableRule : IMigrationRule
         "version keeps running against the new schema and fails on every query that mentions the table. " +
         "Stop using the table first, deploy, and drop it in a later migration.");
 
-    public object[]? Check(MigrationOperation operation)
+    public object[]? Check(MigrationOperation operation, MigrationContext context)
     {
         return operation.Kind == MigrationOperationKind.DropTable
             ? new object[] { operation.QualifiedTable }
