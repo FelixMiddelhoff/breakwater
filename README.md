@@ -145,6 +145,13 @@ projects. If you try it and hit a false positive, a missed case, a rule that
 doesn't make sense, or anything else that's off, please open an issue —
 feedback on what's missing or not working is very welcome.
 
+## Help wanted
+
+This is a one-person project. If you like what Breakwater does and want to
+pitch in — trying it on your own migrations, adding a rule, improving docs,
+anything — it's very welcome. Even just running it and reporting back what
+you found (good or bad) helps a lot.
+
 ## License
 
 MIT
