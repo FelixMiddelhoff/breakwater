@@ -1,5 +1,10 @@
 # Breakwater
 
+[![CI](https://github.com/FelixMiddelhoff/breakwater/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixMiddelhoff/breakwater/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Breakwater.Analyzers.svg)](https://www.nuget.org/packages/Breakwater.Analyzers)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Breakwater.Analyzers.svg)](https://www.nuget.org/packages/Breakwater.Analyzers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Roslyn analyzer that catches unsafe EF Core migrations before production does.
 
 `dotnet ef migrations add` happily generates a `DropColumn`, a `RenameColumn`,
