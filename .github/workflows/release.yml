@@ -42,6 +42,22 @@ jobs:
             bad=1
           fi
           exit $bad
+      - name: Soak passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # soak.yml records a "soak" commit status (state=success) on the
+          # SHA it scanned once a run finds no BW999 (analyzer crash)
+          # findings. Require that status to be success for the exact
+          # commit this tag points at before publishing anything -- see
+          # soak.yml's header comment for why a commit status was chosen
+          # over a separate marker file or artifact.
+          state=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.statuses[] | select(.context=="soak") | .state' | head -n1)
+          if [ "$state" != "success" ]; then
+            echo "::error::No successful 'soak' commit status found for $GITHUB_SHA. Run the soak workflow (workflow_dispatch) on this commit and let it pass before tagging a release."
+            exit 1
+          fi
+          echo "Soak passed on $GITHUB_SHA."
 
   test:
     needs: check

@@ -1,0 +1,88 @@
+name: soak
+
+# Runs the analyzer over real open-source EF Core migrations
+# (tools/CorpusScan/run-scan.ps1) and fails only when the analyzer itself
+# crashed (a BW999 finding — MigrationAnalyzer's own crash guard). Findings
+# from any other rule are expected and do not fail the job; the precision
+# gate in breakwater-quality-policy.md is a hand-review process, not a CI
+# check. See breakwater-memory.md M10 for how the corpus/tool were built.
+#
+# On success this records a "soak" commit status on the scanned SHA
+# (see the last step). release.yml's version-check job reads that status
+# before publishing: it is the "soak passed on this commit" gate the
+# release workflow spec asks for. This is a deliberate, lightweight design
+# choice over a separate artifact/marker file — GitHub's commit status API
+# needs no extra storage and is trivially queryable from another workflow
+# with `gh api repos/:owner/:repo/commits/:sha/status`.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 5 * * 1'
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # A small, fast, always-available real-world corpus for CI. The
+      # larger corpus used for the M10 precision-gate baseline
+      # (tools/CorpusScan/results/corpus-scan-baseline.json) was scanned
+      # locally against bigger checkouts (abp, dotnet/eShop, aspire) that
+      # are too slow to shallow-clone on every scheduled run; this job's
+      # job is crash detection on a live, current corpus, not re-deriving
+      # that baseline.
+      - name: Clone corpus sources
+        run: |
+          mkdir -p corpus
+          git clone --depth 1 https://github.com/dotnet-architecture/eShopOnWeb.git corpus/eShopOnWeb
+
+      - name: Build sources.json
+        run: |
+          cat > tools/CorpusScan/sources.ci.json << 'EOF'
+          [
+            { "name": "eShopOnWeb", "path": "corpus/eShopOnWeb", "kind": "real" }
+          ]
+          EOF
+
+      - name: Run corpus scan
+        shell: pwsh
+        run: ./tools/CorpusScan/run-scan.ps1 -Sources tools/CorpusScan/sources.ci.json
+
+      - name: Fail on any analyzer crash (BW999)
+        shell: pwsh
+        run: |
+          $result = Get-Content tools/CorpusScan/results/corpus-scan.json -Raw | ConvertFrom-Json
+          $crashRule = $result.byRule | Where-Object { $_.ruleId -eq "BW999" }
+          if ($crashRule) {
+            Write-Host "Analyzer crashed $($crashRule.count) time(s) during the soak scan (BW999):" -ForegroundColor Red
+            $crashRule.sample | ConvertTo-Json -Depth 5 | Write-Host
+            exit 1
+          }
+          Write-Host "No BW999 (analyzer crash) findings. $($result.totalFindings) total findings across $($result.sources.Count) source(s), not treated as failures." -ForegroundColor Green
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-results
+          path: tools/CorpusScan/results
+
+      - name: Record soak-passed commit status
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -f state=success \
+            -f context=soak \
+            -f description="Soak scan passed, no analyzer crashes" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

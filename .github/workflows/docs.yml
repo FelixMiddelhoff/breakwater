@@ -1,0 +1,28 @@
+name: docs
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  doc-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run documentation example tests
+        run: dotnet test tests/Breakwater.Analyzers.Tests --configuration Release --filter "FullyQualifiedName~DocumentationTests"
+
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative Markdown links
+        shell: pwsh
+        run: ./tools/check-markdown-links.ps1
