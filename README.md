@@ -131,6 +131,13 @@ place and appends a note asking for one. `#pragma warning disable BW001` and
 `[SuppressMessage("Migration", "BW001")]` also work, the same as any other
 analyzer.
 
+## Testing and feedback
+
+Breakwater is pre-release and could use real-world testing on real EF Core
+projects. If you try it and hit a false positive, a missed case, a rule that
+doesn't make sense, or anything else that's off, please open an issue —
+feedback on what's missing or not working is very welcome.
+
 ## License
 
 MIT
