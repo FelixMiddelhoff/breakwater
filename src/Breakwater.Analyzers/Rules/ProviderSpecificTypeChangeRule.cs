@@ -7,11 +7,13 @@ namespace Breakwater.Analyzers.Rules;
 /// <summary>
 /// BW014: a Postgres <c>AlterColumn</c> that changes between two non-primitive CLR types (the
 /// shape a mapped Postgres enum change takes) can fail or rewrite the table inside the migration's
-/// transaction. Narrow and conservative: only fires inside a known <c>IsNpgsql()</c> guard, and
-/// only when both the old and new CLR types are known and neither looks like a built-in .NET type
-/// (a custom/enum type on both sides is the pattern that is actually provider-specific; a plain
-/// primitive-to-primitive change is already BW004's job). Provider unknown or either type unknown:
-/// silent, per "silent when unsure".
+/// transaction. Narrow and conservative: only fires when the operation is detected as Postgres -
+/// either the known <c>IsNpgsql()</c> guard heuristic, or an explicit <c>breakwater_provider =
+/// postgres</c> configuration override (see <see cref="Operations.MigrationOperation.IsNpgsql"/>) -
+/// and only when both the old and new CLR types are known and neither looks like a built-in .NET
+/// type (a custom/enum type on both sides is the pattern that is actually provider-specific; a
+/// plain primitive-to-primitive change is already BW004's job). Provider unknown or either type
+/// unknown: silent, per "silent when unsure".
 /// </summary>
 internal sealed class ProviderSpecificTypeChangeRule : IMigrationRule
 {
