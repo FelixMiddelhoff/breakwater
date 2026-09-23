@@ -1,0 +1,61 @@
+name: pr-review
+
+# Posts a single summarizing PR comment for breakwater findings on the files
+# a pull request actually touches, in addition to the inline build
+# warnings/annotations that `ci.yml` already produces on every push.
+#
+# Deliberately `pull_request`, not `pull_request_target`: this builds the
+# PR's own (possibly fork) code, and pull_request_target combined with
+# checking out fork code is a known supply-chain risk (the target ref would
+# run with base-repo secrets/write token against attacker-controlled code).
+# `pull_request` gives a default GITHUB_TOKEN scoped to the fork-safe
+# permissions below, which is all this workflow needs: it only reads PR
+# metadata/comments and writes one comment, no secrets involved.
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sarif-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: List changed files
+        id: changed-files
+        run: |
+          git diff --name-only "origin/${{ github.event.pull_request.base.ref }}...HEAD" > changed-files.txt
+          echo "Changed files:"
+          cat changed-files.txt
+
+      - name: Build with SARIF output
+        # Same mechanism tools/CorpusScan/run-scan.ps1 and the samples
+        # project already use: MSBuild's /p:ErrorLog logger, no extra
+        # package or third-party action. The build is allowed to report
+        # findings (warnings) without failing the job; a genuine compile
+        # error still fails it via the exit-code check below.
+        run: |
+          dotnet build --nologo -p:ErrorLog=results.sarif%3Bversion=2 || echo "build-had-warnings=true" >> "$GITHUB_ENV"
+
+      - name: Post or update PR comment from SARIF
+        uses: actions/github-script@v7
+        env:
+          SARIF_PATH: ${{ github.workspace }}/results.sarif
+          DOCS_BASE_URL: https://github.com/${{ github.repository }}/blob/main/docs/rules
+        with:
+          script: |
+            const fs = require('fs');
+            const changedFiles = fs.readFileSync('changed-files.txt', 'utf8');
+            process.env.CHANGED_FILES = changedFiles;
+            const script = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/post-sarif-comment.js`);
+            await script({ github, context, core });
