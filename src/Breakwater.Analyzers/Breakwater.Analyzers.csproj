@@ -26,8 +26,14 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.0.1" PrivateAssets="all" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- IncludeBuildOutput=false means the symbols package would otherwise have nothing to hold. -->
+    <AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>.pdb</AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(OutputPath)\$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
