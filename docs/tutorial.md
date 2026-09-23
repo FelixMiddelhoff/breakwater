@@ -66,6 +66,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Shop.Migrations;
 
+[Migration("20260115120000_Cleanup")]
 public partial class Cleanup : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -77,6 +78,8 @@ public partial class Cleanup : Migration
 }
 ```
 
+(The `[Migration("id")]` attribute is what `dotnet ef migrations add` always generates; without it Breakwater also reports BW028, since EF Core would never discover the migration.)
+
 Build:
 
 ```
@@ -86,9 +89,9 @@ dotnet build
 You get three warnings (the line and column depend on your file):
 
 ```
-Migrations/Cleanup.cs(9,9): warning BW001: DropColumn 'Users.Email' loses data and breaks application versions that still read the column (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW001.md)
-Migrations/Cleanup.cs(10,9): warning BW003: RenameColumn 'Customers.Mail' to 'EmailAddress' breaks application versions that still use the old name (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW003.md)
-Migrations/Cleanup.cs(11,9): warning BW002: DropTable 'shop.LegacyOrders' loses data and breaks application versions that still read the table (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW002.md)
+Migrations/Cleanup.cs(10,9): warning BW001: DropColumn 'Users.Email' loses data and breaks application versions that still read the column (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW001.md)
+Migrations/Cleanup.cs(11,9): warning BW003: RenameColumn 'Customers.Mail' to 'EmailAddress' breaks application versions that still use the old name (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW003.md)
+Migrations/Cleanup.cs(12,9): warning BW002: DropTable 'shop.LegacyOrders' loses data and breaks application versions that still read the table (https://github.com/FelixMiddelhoff/breakwater/blob/main/docs/rules/BW002.md)
 ```
 
 If you use real migrations instead, note that `dotnet ef migrations add`
@@ -230,7 +233,7 @@ scanning enabled for the repository.)
 | No warning for a method called `DropColumn` on your own type | Only calls on EF Core's `MigrationBuilder` are analyzed | Nothing |
 | No warning for an unknown operation such as your own extension method on `MigrationBuilder` | Breakwater does not guess what custom operations do | Review by hand |
 
-The rules covered so far are BW001 to BW034; each rule's own page under
+The rules covered so far are BW001 to BW036; each rule's own page under
 `docs/rules/` has a worked example, and the README lists the current set.
 
 ## 8. Troubleshooting

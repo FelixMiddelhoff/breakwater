@@ -67,7 +67,7 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
         }
 
         // Read once: none of the breakwater_* global options can change mid-compilation.
-        var configuration = BreakwaterConfiguration.Read(context.Options.AnalyzerConfigOptionsProvider);
+        var configuration = BreakwaterConfiguration.Read(context.Compilation, context.Options.AnalyzerConfigOptionsProvider);
         var profile = configuration.Profile;
         var migrationAttributeType = context.Compilation.GetTypeByMetadataName(MigrationAttributeMetadataName);
 

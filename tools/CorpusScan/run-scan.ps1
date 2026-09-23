@@ -17,16 +17,34 @@
 .PARAMETER OutDir
     Where results go. Defaults to tools/CorpusScan/results next to this
     script.
+
+.PARAMETER ProviderOverride
+    Optional. Forces `breakwater_provider = <value>` (e.g. "postgres") in
+    the per-source .editorconfig alongside `breakwater_profile = strict`,
+    the same override switch `BreakwaterDatabaseProvider`/
+    `BreakwaterConfiguration` reads at analyzer runtime. Used to measure
+    recall for provider-guard-dependent rules (e.g. BW020) against
+    migrations that never wrap their calls in an `if
+    (migrationBuilder.IsNpgsql())` guard. Left unset, provider detection
+    stays on its normal Auto heuristic.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Sources,
-    [string]$OutDir = "$PSScriptRoot/results"
+    # Left unset by default rather than "$PSScriptRoot/results" here: in
+    # Windows PowerShell 5.1, a default parameter value referencing
+    # $PSScriptRoot is bound before the script body runs, when $PSScriptRoot
+    # is not yet populated -- it silently evaluates to "" and writes results
+    # to the filesystem root (e.g. D:\results) instead of next to this
+    # script. Resolved for real below, once $PSScriptRoot is valid.
+    [string]$OutDir,
+    [string]$ProviderOverride
 )
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot/../.."
 $analyzerProj = Join-Path $root "src/Breakwater.Analyzers/Breakwater.Analyzers.csproj"
 $workDir = "$PSScriptRoot/_work"
+if ([string]::IsNullOrEmpty($OutDir)) { $OutDir = "$PSScriptRoot/results" }
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
@@ -200,7 +218,11 @@ foreach ($src in $sourceList) {
 
     # breakwater_profile = strict so BW011/BW020/BW030 (strict-only) also
     # surface their raw finding counts for the precision review.
-    Set-Content -Path (Join-Path $work ".editorconfig") -Value "root = true`n`n[*.cs]`nbreakwater_profile = strict`n" -Encoding utf8
+    $editorConfigBody = "root = true`n`n[*.cs]`nbreakwater_profile = strict`n"
+    if (-not [string]::IsNullOrEmpty($ProviderOverride)) {
+        $editorConfigBody += "breakwater_provider = $ProviderOverride`n"
+    }
+    Set-Content -Path (Join-Path $work ".editorconfig") -Value $editorConfigBody -Encoding utf8
 
     $sarif = Join-Path $work "scan.sarif"
     Push-Location $work

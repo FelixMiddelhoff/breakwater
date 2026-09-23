@@ -7,5 +7,13 @@
   { "name": "bitwarden-mysql", "path": "D:/Claude/server/util/MySqlMigrations", "kind": "real" },
   { "name": "bitwarden-sqlite", "path": "D:/Claude/server/util/SqliteMigrations", "kind": "real" },
   { "name": "platformplatform", "path": "D:/Claude/platformplatform", "kind": "real" },
-  { "name": "bitplatform", "path": "D:/Claude/bitplatform", "kind": "real" }
+  { "name": "bitplatform", "path": "D:/Claude/bitplatform", "kind": "real" },
+  { "name": "piranha-mysql", "path": "D:/Claude/piranha-core/data/Piranha.Data.EF.MySql", "kind": "real" },
+  { "name": "piranha-postgres", "path": "D:/Claude/piranha-core/data/Piranha.Data.EF.PostgreSql", "kind": "real" },
+  { "name": "piranha-sqlite", "path": "D:/Claude/piranha-core/data/Piranha.Data.EF.SQLite", "kind": "real" },
+  { "name": "piranha-sqlserver", "path": "D:/Claude/piranha-core/data/Piranha.Data.EF.SQLServer", "kind": "real" },
+  { "name": "piranha-identity-mysql", "path": "D:/Claude/piranha-core/identity/Piranha.AspNetCore.Identity.MySQL", "kind": "real" },
+  { "name": "piranha-identity-postgres", "path": "D:/Claude/piranha-core/identity/Piranha.AspNetCore.Identity.PostgreSQL", "kind": "real" },
+  { "name": "piranha-identity-sqlite", "path": "D:/Claude/piranha-core/identity/Piranha.AspNetCore.Identity.SQLite", "kind": "real" },
+  { "name": "piranha-identity-sqlserver", "path": "D:/Claude/piranha-core/identity/Piranha.AspNetCore.Identity.SQLServer", "kind": "real" }
 ]

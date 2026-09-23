@@ -96,6 +96,8 @@ active: **Warning** and **Suggestion** rules run under the default
 | [BW032](docs/rules/BW032.md) | `Database.EnsureCreated()` in a project that also has migrations | Warning |
 | [BW033](docs/rules/BW033.md) | Raw `Sql` that creates a login/user with a password, or embeds a connection string | Warning |
 | [BW034](docs/rules/BW034.md) | Raw `Sql` that disables a safety check (`NOCHECK CONSTRAINT`, `DISABLE TRIGGER`, `SET FOREIGN_KEY_CHECKS=0`, `DROP DATABASE`) | Warning |
+| [BW035](docs/rules/BW035.md) | Raw `Sql`: `ALTER TABLE ... DROP COLUMN`, or `ADD COLUMN ... NOT NULL` with no `DEFAULT` | Warning |
+| [BW036](docs/rules/BW036.md) | Raw `Sql`: `DROP PROCEDURE`/`FUNCTION`/`VIEW IF EXISTS` immediately followed by a matching `CREATE` (idempotent redefinition) | Suggestion |
 
 `BW999` is not a migration rule: it reports if a rule itself throws, so a bug
 in Breakwater surfaces as a low-severity diagnostic instead of crashing your
@@ -142,6 +144,13 @@ Breakwater is pre-release and could use real-world testing on real EF Core
 projects. If you try it and hit a false positive, a missed case, a rule that
 doesn't make sense, or anything else that's off, please open an issue —
 feedback on what's missing or not working is very welcome.
+
+## Help wanted
+
+This is a one-person project. If you like what Breakwater does and want to
+pitch in — trying it on your own migrations, adding a rule, improving docs,
+anything — it's very welcome. Even just running it and reporting back what
+you found (good or bad) helps a lot.
 
 ## License
 
