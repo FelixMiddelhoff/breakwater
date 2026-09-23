@@ -9,6 +9,8 @@
   <ItemGroup>
     <!-- Test-only: compiles the migration snippets the analyzer is run against. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <!-- Test-only: hosts a Document/AdhocWorkspace to exercise CodeFixes/ providers. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />

@@ -12,7 +12,8 @@ namespace Breakwater.Analyzers.Tests.Support;
 /// <summary>Compiles a C# snippet next to the EF Core stubs and runs the analyzer on it.</summary>
 internal static class AnalyzerRunner
 {
-    private static readonly ImmutableArray<MetadataReference> FrameworkReferences = LoadFrameworkReferences();
+    /// <summary>Exposed for <see cref="CodeFixRunner"/>, which builds its own workspace-hosted project.</summary>
+    internal static readonly ImmutableArray<MetadataReference> FrameworkReferences = LoadFrameworkReferences();
 
     /// <summary>
     /// Runs the analyzer over <paramref name="source"/> and returns only Breakwater diagnostics,
