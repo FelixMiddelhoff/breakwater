@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- This project exists to show real Breakwater warnings, not to ship anything: keep
+         building it even though it deliberately contains unsafe migrations. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- References the analyzer directly from source (no packed/published NuGet package
+         exists yet); this is exactly how a consumer's <PackageReference> wires it up. -->
+    <ProjectReference Include="..\..\src\Breakwater.Analyzers\Breakwater.Analyzers.csproj"
+                       OutputItemType="Analyzer"
+                       ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

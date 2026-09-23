@@ -138,14 +138,20 @@ what "safe" means for each rule.
 **Fix the migration.** Follow the safe alternative on the rule's page, for
 example split a column drop over two releases. This is the intended outcome.
 
-**Accept it for one call.** Wrap the call in a pragma. This documents that you
-looked at it:
+**Accept it for one call.** Wrap the call in a pragma, or use Breakwater's own
+suppression comment on the line above the call (it requires a non-empty reason;
+an empty one is ignored and the diagnostic still fires, now saying so):
 
 ```csharp
 // Column has been unused since release 4.2; old versions are gone.
 #pragma warning disable BW001
 migrationBuilder.DropColumn(name: "Email", table: "Users");
 #pragma warning restore BW001
+```
+
+```csharp
+// breakwater: allow BW001 unused since release 4.2, old versions are gone
+migrationBuilder.DropColumn(name: "Email", table: "Users");
 ```
 
 **Change how strict a rule is** in `.editorconfig` (project-wide or per
@@ -164,6 +170,15 @@ dotnet_diagnostic.BW002.severity = none
 ```
 
 Valid severities: `error`, `warning`, `suggestion`, `silent`, `none`.
+
+**Change the whole profile.** Most rules default to the `recommended` profile
+(Warning or Suggestion tier). A few advisory rules (BW011 empty `Down`, BW020
+Postgres `lock_timeout`, BW030 cascade delete) are noisy enough that they ship
+off by default; opt into them project-wide with:
+
+```ini
+breakwater_profile = strict
+```
 
 **Turn a rule off for the build only**, without touching `.editorconfig`:
 
@@ -215,8 +230,8 @@ scanning enabled for the repository.)
 | No warning for a method called `DropColumn` on your own type | Only calls on EF Core's `MigrationBuilder` are analyzed | Nothing |
 | No warning for an unknown operation such as your own extension method on `MigrationBuilder` | Breakwater does not guess what custom operations do | Review by hand |
 
-The rules covered so far are BW001 to BW003; the table above grows with each
-new rule, and the README lists the current set.
+The rules covered so far are BW001 to BW034; each rule's own page under
+`docs/rules/` has a worked example, and the README lists the current set.
 
 ## 8. Troubleshooting
 
