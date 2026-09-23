@@ -92,4 +92,20 @@ internal sealed class MigrationOperation
     /// "provider unknown", and provider-specific rules stay silent for it.
     /// </summary>
     public bool IsNpgsql { get; init; }
+
+    // CreateIndex / constraint details.
+
+    /// <summary>CreateIndex's <c>unique</c> argument.</summary>
+    public bool Unique { get; init; }
+
+    /// <summary>
+    /// True when the <c>CreateIndex</c> call is chained with
+    /// <c>.Annotation("Npgsql:CreatedConcurrently", true)</c>.
+    /// </summary>
+    public bool IsCreatedConcurrently { get; init; }
+
+    /// <summary>
+    /// True when the <c>CreateIndex</c> call is chained with <c>.Annotation("SqlServer:Online", true)</c>.
+    /// </summary>
+    public bool IsOnline { get; init; }
 }

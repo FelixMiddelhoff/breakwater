@@ -13,7 +13,11 @@ internal static class RuleCatalog
         new AlterColumnNotNullRule(),
         new AddColumnNotNullRule(),
         new AlterColumnCollationRule(),
-        new AddColumnVolatileDefaultRule());
+        new AddColumnVolatileDefaultRule(),
+        new CreateIndexOnlineRule(),
+        new AddValidatingConstraintRule(),
+        new AddUniqueOrPrimaryKeyRule(),
+        new DropConstraintRule());
 
     /// <summary>
     /// Rules that can both fire on the same <c>AlterColumn</c> call. Only the first match in

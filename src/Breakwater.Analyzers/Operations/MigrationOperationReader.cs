@@ -116,9 +116,130 @@ internal static class MigrationOperationReader
                     IsNpgsql = IsGuardedByIsNpgsql(invocation),
                 };
 
+            case "CreateIndex":
+                return new MigrationOperation(
+                    MigrationOperationKind.CreateIndex,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location)
+                {
+                    Unique = ReadBool(invocation, "unique"),
+                    IsCreatedConcurrently = HasChainedAnnotation(invocation, "Npgsql:CreatedConcurrently"),
+                    IsOnline = HasChainedAnnotation(invocation, "SqlServer:Online"),
+                };
+
+            case "AddForeignKey":
+                return new MigrationOperation(
+                    MigrationOperationKind.AddForeignKey,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "AddCheckConstraint":
+                return new MigrationOperation(
+                    MigrationOperationKind.AddCheckConstraint,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "AddUniqueConstraint":
+                return new MigrationOperation(
+                    MigrationOperationKind.AddUniqueConstraint,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "AddPrimaryKey":
+                return new MigrationOperation(
+                    MigrationOperationKind.AddPrimaryKey,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "DropPrimaryKey":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropPrimaryKey,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "DropUniqueConstraint":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropUniqueConstraint,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "DropCheckConstraint":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropCheckConstraint,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
+            case "DropForeignKey":
+                return new MigrationOperation(
+                    MigrationOperationKind.DropForeignKey,
+                    ReadOptionalText(invocation, "schema"),
+                    ReadName(invocation, "table"),
+                    ReadName(invocation, "name"),
+                    newName: null,
+                    location);
+
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// True when this call is immediately chained with <c>.Annotation(annotationName, true)</c>,
+    /// the pattern EF uses for provider-specific opt-ins on the operation builder returned by
+    /// calls such as <c>CreateIndex</c> (e.g. <c>migrationBuilder.CreateIndex(...).Annotation(...)</c>).
+    /// </summary>
+    private static bool HasChainedAnnotation(IInvocationOperation invocation, string annotationName)
+    {
+        if (invocation.Parent is not IInvocationOperation outer || outer.TargetMethod.Name != "Annotation")
+        {
+            return false;
+        }
+
+        var name = ReadConstant(outer, "name");
+        var value = ReadConstant(outer, "value");
+        return name is string nameText && nameText == annotationName && value is bool flag && flag;
+    }
+
+    private static object? ReadConstant(IInvocationOperation invocation, string parameterName)
+    {
+        var argument = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == parameterName);
+        if (argument is null)
+        {
+            return null;
+        }
+
+        var value = argument.Value;
+        while (value is IConversionOperation conversion)
+        {
+            value = conversion.Operand;
+        }
+
+        var constant = value.ConstantValue;
+        return constant.HasValue ? constant.Value : null;
     }
 
     /// <summary>The <c>T</c> in <c>AddColumn&lt;T&gt;</c> / <c>AlterColumn&lt;T&gt;</c>, display-formatted.</summary>

@@ -10,4 +10,13 @@ internal enum MigrationOperationKind
     AlterColumn,
     AddColumn,
     CreateTable,
+    CreateIndex,
+    AddForeignKey,
+    AddCheckConstraint,
+    AddUniqueConstraint,
+    AddPrimaryKey,
+    DropPrimaryKey,
+    DropUniqueConstraint,
+    DropCheckConstraint,
+    DropForeignKey,
 }

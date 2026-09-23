@@ -112,6 +112,36 @@ public sealed class MigrationAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        return new MigrationContext(tablesCreated);
+        var suppressTransaction = HasSuppressTransactionAssignment(methodNode, semanticModel, migrationBuilder);
+        return new MigrationContext(tablesCreated, suppressTransaction);
+    }
+
+    /// <summary>
+    /// True when the method sets <c>migrationBuilder.SuppressTransaction = true;</c> anywhere,
+    /// the flag a Postgres <c>CREATE INDEX CONCURRENTLY</c> needs alongside the
+    /// <c>Npgsql:CreatedConcurrently</c> annotation.
+    /// </summary>
+    private static bool HasSuppressTransactionAssignment(SyntaxNode methodNode, SemanticModel semanticModel, INamedTypeSymbol migrationBuilder)
+    {
+        foreach (var assignment in methodNode.DescendantNodes().OfType<AssignmentExpressionSyntax>())
+        {
+            if (assignment.Left is not MemberAccessExpressionSyntax { Name.Identifier.ValueText: "SuppressTransaction" } memberAccess)
+            {
+                continue;
+            }
+
+            if (semanticModel.GetOperation(assignment.Right)?.ConstantValue is not { HasValue: true, Value: true })
+            {
+                continue;
+            }
+
+            var receiverType = semanticModel.GetTypeInfo(memberAccess.Expression).Type;
+            if (SymbolEqualityComparer.Default.Equals(receiverType, migrationBuilder))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

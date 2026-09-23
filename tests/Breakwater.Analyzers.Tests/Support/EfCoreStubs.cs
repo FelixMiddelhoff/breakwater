@@ -55,6 +55,55 @@ internal static class EfCoreStubs
                     int? oldPrecision = null,
                     int? oldScale = null,
                     string? oldCollation = null) { }
+
+                public bool SuppressTransaction { get; set; }
+
+                public virtual OperationBuilder CreateIndex(
+                    string name,
+                    string table,
+                    string[] columns,
+                    string? schema = null,
+                    bool unique = false,
+                    string? filter = null) => new OperationBuilder();
+
+                public virtual void AddForeignKey(
+                    string name,
+                    string table,
+                    string[] columns,
+                    string principalTable,
+                    string[]? principalColumns = null,
+                    string? schema = null,
+                    string? principalSchema = null,
+                    int? onUpdate = null,
+                    int? onDelete = null) { }
+
+                public virtual void AddCheckConstraint(
+                    string name,
+                    string table,
+                    string sql,
+                    string? schema = null) { }
+
+                public virtual void AddUniqueConstraint(
+                    string name,
+                    string table,
+                    string[] columns,
+                    string? schema = null) { }
+
+                public virtual void AddPrimaryKey(
+                    string name,
+                    string table,
+                    string[] columns,
+                    string? schema = null) { }
+
+                public virtual void DropPrimaryKey(string name, string table, string? schema = null) { }
+                public virtual void DropUniqueConstraint(string name, string table, string? schema = null) { }
+                public virtual void DropCheckConstraint(string name, string table, string? schema = null) { }
+                public virtual void DropForeignKey(string name, string table, string? schema = null) { }
+            }
+
+            public class OperationBuilder
+            {
+                public virtual OperationBuilder Annotation(string name, object? value) => this;
             }
 
             public static class NpgsqlMigrationBuilderExtensions

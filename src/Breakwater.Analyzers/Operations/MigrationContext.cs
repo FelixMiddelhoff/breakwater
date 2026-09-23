@@ -10,9 +10,10 @@ internal sealed class MigrationContext
 {
     private readonly HashSet<string> _tablesCreatedInThisMigration;
 
-    public MigrationContext(HashSet<string> tablesCreatedInThisMigration)
+    public MigrationContext(HashSet<string> tablesCreatedInThisMigration, bool suppressTransaction = false)
     {
         _tablesCreatedInThisMigration = tablesCreatedInThisMigration;
+        SuppressTransaction = suppressTransaction;
     }
 
     /// <summary>
@@ -21,4 +22,11 @@ internal sealed class MigrationContext
     /// not-null rules stay silent for it.
     /// </summary>
     public bool IsTableCreatedInThisMigration(string qualifiedTable) => _tablesCreatedInThisMigration.Contains(qualifiedTable);
+
+    /// <summary>
+    /// True when the <c>Up</c> method sets <c>migrationBuilder.SuppressTransaction = true;</c>
+    /// anywhere, the flag EF requires alongside a Postgres <c>CreatedConcurrently</c> index build
+    /// (concurrent index creation cannot run inside the migration's transaction).
+    /// </summary>
+    public bool SuppressTransaction { get; }
 }
