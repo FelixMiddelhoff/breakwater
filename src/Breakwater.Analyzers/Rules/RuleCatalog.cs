@@ -17,7 +17,8 @@ internal static class RuleCatalog
         new CreateIndexOnlineRule(),
         new AddValidatingConstraintRule(),
         new AddUniqueOrPrimaryKeyRule(),
-        new DropConstraintRule());
+        new DropConstraintRule(),
+        new SqlUnsafeStatementRule());
 
     /// <summary>
     /// Rules that can both fire on the same <c>AlterColumn</c> call. Only the first match in

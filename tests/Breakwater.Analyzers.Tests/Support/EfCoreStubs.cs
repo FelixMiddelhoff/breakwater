@@ -99,6 +99,8 @@ internal static class EfCoreStubs
                 public virtual void DropUniqueConstraint(string name, string table, string? schema = null) { }
                 public virtual void DropCheckConstraint(string name, string table, string? schema = null) { }
                 public virtual void DropForeignKey(string name, string table, string? schema = null) { }
+
+                public virtual void Sql(string sql, bool suppressTransaction = false) { }
             }
 
             public class OperationBuilder

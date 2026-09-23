@@ -108,4 +108,14 @@ internal sealed class MigrationOperation
     /// True when the <c>CreateIndex</c> call is chained with <c>.Annotation("SqlServer:Online", true)</c>.
     /// </summary>
     public bool IsOnline { get; init; }
+
+    // Sql details.
+
+    /// <summary>
+    /// The <c>sql</c> argument's compile-time constant text, or null when it is not a
+    /// compile-time constant (a variable, <c>File.ReadAllText(...)</c>, a resource, string
+    /// concatenation with a non-constant operand, ...). BW010 stays silent when this is null:
+    /// the content is not statically knowable, so it does not guess.
+    /// </summary>
+    public string? SqlText { get; init; }
 }

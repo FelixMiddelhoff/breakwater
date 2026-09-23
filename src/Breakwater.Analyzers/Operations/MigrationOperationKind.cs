@@ -19,4 +19,5 @@ internal enum MigrationOperationKind
     DropUniqueConstraint,
     DropCheckConstraint,
     DropForeignKey,
+    Sql,
 }

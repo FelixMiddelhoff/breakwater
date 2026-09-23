@@ -202,6 +202,23 @@ internal static class MigrationOperationReader
                     newName: null,
                     location);
 
+            case "Sql":
+                return new MigrationOperation(
+                    MigrationOperationKind.Sql,
+                    schema: null,
+                    table: string.Empty,
+                    column: null,
+                    newName: null,
+                    location)
+                {
+                    // ReadOptionalText already relies on Roslyn's own constant folding, which
+                    // covers plain/verbatim/raw string literals, constant interpolated strings
+                    // (C# 10+) and concatenation of constant operands across lines. Anything
+                    // else (a variable, File.ReadAllText, a resource) is not a compile-time
+                    // constant and comes back null, so BW010 stays silent for it.
+                    SqlText = ReadOptionalText(invocation, "sql"),
+                };
+
             default:
                 return null;
         }
