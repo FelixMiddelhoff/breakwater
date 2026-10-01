@@ -42,6 +42,13 @@
   <ItemGroup>
     <!-- Lets the SQL tokenizer (Sql/) be unit-tested directly, not only through the analyzer. -->
     <InternalsVisibleTo Include="Breakwater.Analyzers.Tests" />
+    <!-- Lets Breakwater.Tool (the "dotnet ef migrations script" linter) reuse Sql/SqlTokenizer.cs,
+         Sql/SqlStatementRisk.cs, and Configuration/BreakwaterDatabaseProvider.cs directly instead
+         of duplicating the tokenizer or the provider enum in a second project. -->
+    <InternalsVisibleTo Include="Breakwater.Tool" />
+    <!-- Breakwater.Tool.Tests asserts against BreakwaterDatabaseProvider directly (the same enum
+         the tool's "provider" command-line flag parses into), same reasoning as the entry above. -->
+    <InternalsVisibleTo Include="Breakwater.Tool.Tests" />
   </ItemGroup>
 
 </Project>
