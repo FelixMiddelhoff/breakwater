@@ -14,7 +14,8 @@ Contents:
 6. [Use it in CI](#6-use-it-in-ci)
 7. [Every possible outcome](#7-every-possible-outcome)
 8. [Troubleshooting](#8-troubleshooting)
-9. [Uninstall](#9-uninstall)
+9. [Lint a generated SQL script with Breakwater.Tool](#9-lint-a-generated-sql-script-with-breakwatertool)
+10. [Uninstall](#10-uninstall)
 
 ## 1. Install
 
@@ -260,10 +261,79 @@ rules there.
 **Build time.** The analyzer only inspects calls in your migration code, so its
 cost is negligible compared to compilation.
 
-## 9. Uninstall
+## 9. Lint a generated SQL script with Breakwater.Tool
+
+The analyzer inspects the C# `migrationBuilder.*` calls in a migration, so it
+cannot see what EF Core's own SQL generator actually emits, and it stays
+silent inside a raw `migrationBuilder.Sql("...")` string unless the text is
+one of the few statically-knowable constant shapes. `Breakwater.Tool` closes
+that gap: it lints the real SQL `dotnet ef migrations script` produces,
+after EF has expanded everything to provider-specific statements. Install it
+once as a global tool:
+
+```
+dotnet tool install --global Breakwater.Tool
+```
+
+Generate a script and lint it. `--provider` is required (`sqlserver`,
+`postgres`, `sqlite` or `mysql`) — unlike the analyzer, which can infer the
+provider from a C# guard or an `.editorconfig` override, a plain SQL file
+carries no such signal:
+
+```
+dotnet ef migrations script --output migrations.sql
+breakwater-sql migrations.sql --provider sqlserver
+```
+
+Real output against a script containing a disguised column drop and a
+`GO` batch separator:
+
+```
+RULE   LINE  MIGRATION  MESSAGE
+BW035  1     (script)   ALTER TABLE Users DROP COLUMN Email drops a column exactly like a typed DropColumn(name: "Email", table: "Users") call would (same data-loss risk as BW001), hidden in raw SQL where that rule cannot see it
+BW031  2     (script)   Raw SQL contains 'GO', a client-side batch separator that cannot be sent as one command
+
+2 issue(s) found.
+```
+
+Exit code is `1` when anything is found, `0` on a clean script — useful as a
+CI gate alongside the analyzer's own build warnings:
+
+```
+dotnet ef migrations script --output migrations.sql
+breakwater-sql migrations.sql --provider postgres
+```
+
+`--format json` prints the same findings as a JSON array instead of a table,
+for scripting. Running with no `--provider` prints usage and exits `2`:
+
+```
+breakwater-sql
+```
+```
+--provider is required: the generated script is already provider-specific SQL.
+Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [<script-file>]
+Reads the script from <script-file>, or from stdin when no file is given.
+```
+
+With no file argument, `breakwater-sql` reads from stdin, so it chains
+directly off `dotnet ef migrations script`'s own output without a temp file:
+
+```
+dotnet ef migrations script | breakwater-sql --provider postgres
+```
+
+It covers a smaller rule set than the analyzer — only the shapes that are
+genuinely about raw SQL text (`BW010`, `BW019`, `BW031`, `BW033`, `BW034`,
+`BW035`, `BW036`) — since every other rule reasons about typed
+`MigrationBuilder` calls that no longer exist once EF has rendered them to
+SQL.
+
+## 10. Uninstall
 
 ```
 dotnet remove package Breakwater.Analyzers
+dotnet tool uninstall --global Breakwater.Tool
 ```
 
 Nothing else was added to your project, so nothing else has to be cleaned up
