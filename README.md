@@ -138,6 +138,16 @@ place and appends a note asking for one. `#pragma warning disable BW001` and
 `[SuppressMessage("Migration", "BW001")]` also work, the same as any other
 analyzer.
 
+## Use breakwater in CI on your own repo
+
+Breakwater comments on its own PRs with a summary of findings on changed
+files (see `.github/workflows/pr-review.yml`). That mechanism is packaged as
+a reusable composite GitHub Action — see
+[`.github/actions/pr-comment`](.github/actions/pr-comment) for the inputs, a
+full example workflow, and the honest limitations (it requires your project
+to already reference `Breakwater.Analyzers`, and it isn't published/tagged
+yet, same pre-release status as the package above).
+
 ## Testing and feedback
 
 Breakwater is pre-release and could use real-world testing on real EF Core

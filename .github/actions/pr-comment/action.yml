@@ -1,0 +1,110 @@
+name: 'Breakwater PR Comment'
+description: >-
+  Builds your EF Core project with Breakwater.Analyzers and posts (or
+  updates) a single PR comment summarizing migration-safety findings on the
+  files the pull request actually touches.
+author: 'FelixMiddelhoff'
+
+# Requires that the checked-out repo's own project(s) already reference the
+# Breakwater.Analyzers NuGet package (see README "Design choice" section for
+# why this action does not inject a PackageReference for you).
+
+inputs:
+  github-token:
+    description: >-
+      Token used to read/write the PR comment. Needs `pull-requests: write`
+      (the default GITHUB_TOKEN has this when the workflow's `permissions`
+      block grants it).
+    required: false
+    default: ${{ github.token }}
+  working-directory:
+    description: >-
+      Directory containing the solution/project(s) to build. Defaults to the
+      repo root.
+    required: false
+    default: '.'
+  build-args:
+    description: >-
+      Extra arguments appended to `dotnet build` (e.g. `--configuration
+      Release` or a specific `.sln`/`.csproj` path). The action always adds
+      `-p:ErrorLog=<path>;version=2` itself.
+    required: false
+    default: ''
+  sarif-path:
+    description: >-
+      Path (relative to `working-directory`) the SARIF log is written to and
+      read back from.
+    required: false
+    default: 'breakwater-results.sarif'
+  base-ref:
+    description: >-
+      Base branch to diff against when computing the PR's changed files.
+      Defaults to the pull request's own base ref.
+    required: false
+    default: ${{ github.event.pull_request.base.ref }}
+  docs-base-url:
+    description: >-
+      Base URL used to link each finding's rule id to its documentation
+      page, e.g. `https://github.com/OWNER/REPO/blob/main/docs/rules`. Leave
+      empty to render rule ids as plain text instead of links.
+    required: false
+    default: ''
+  dotnet-version:
+    description: '.NET SDK version passed to actions/setup-dotnet.'
+    required: false
+    default: '8.0.x'
+  setup-dotnet:
+    description: >-
+      Whether this action should run actions/setup-dotnet itself. Set to
+      `false` if your workflow already sets up the SDK it wants.
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up .NET
+      if: inputs.setup-dotnet == 'true'
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: List changed files
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        git fetch --no-tags --depth=1 origin "${{ inputs.base-ref }}"
+        git diff --name-only "origin/${{ inputs.base-ref }}...HEAD" > changed-files.txt
+        echo "Changed files:"
+        cat changed-files.txt
+
+    - name: Build with SARIF output
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      # The build is allowed to report findings (warnings) without failing
+      # this step; a genuine compile error still fails the job via dotnet
+      # build's own non-zero exit code (no `|| true` here).
+      # The `;` in `ErrorLog=<path>;version=2` is itself an MSBuild property
+      # separator, so it must be percent-encoded (%3B) on the command line
+      # or the `version=2` part is silently dropped and MSBuild falls back
+      # to the legacy SARIF 1.0.0 schema (same thing pr-review.yml and
+      # tools/CorpusScan/run-scan.ps1 already do).
+      run: |
+        dotnet build --nologo -p:ErrorLog="${{ inputs.sarif-path }}%3Bversion=2" ${{ inputs.build-args }}
+
+    - name: Post or update PR comment from SARIF
+      uses: actions/github-script@v9
+      env:
+        SARIF_PATH: ${{ inputs.working-directory }}/${{ inputs.sarif-path }}
+        CHANGED_FILES_PATH: ${{ inputs.working-directory }}/changed-files.txt
+        DOCS_BASE_URL: ${{ inputs.docs-base-url }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const changedFiles = fs.readFileSync(process.env.CHANGED_FILES_PATH, 'utf8');
+          process.env.CHANGED_FILES = changedFiles;
+          const scriptPath = `${{ github.action_path }}/../../scripts/post-sarif-comment.js`;
+          const script = require(scriptPath);
+          await script({ github, context, core });
