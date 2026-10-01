@@ -108,4 +108,96 @@ public class ProgramTests
         Assert.Equal(2, exitCode);
         Assert.Contains("Could not read", stderr.ToString());
     }
+
+    [Fact]
+    public void Ignored_finding_is_excluded_from_output_and_exit_code()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        // "TRUNCATE TABLE Orders;" is a single line script, so the finding is on line 1.
+        var exitCode = Program.Run(
+            new[] { "--provider", "postgres", "--ignore", "BW010:1" },
+            stdout,
+            stderr,
+            new StringReader("TRUNCATE TABLE Orders;"));
+
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("BW010", stdout.ToString());
+        Assert.Contains("No issues found.", stdout.ToString());
+        Assert.Contains("1 finding(s) suppressed", stdout.ToString());
+    }
+
+    [Fact]
+    public void Ignore_for_a_different_line_does_not_suppress_the_finding()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Program.Run(
+            new[] { "--provider", "postgres", "--ignore", "BW010:99" },
+            stdout,
+            stderr,
+            new StringReader("TRUNCATE TABLE Orders;"));
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("BW010", stdout.ToString());
+    }
+
+    [Fact]
+    public void Ignore_file_with_comments_and_blank_lines_suppresses_matching_findings()
+    {
+        var ignoreFilePath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(ignoreFilePath, "# known-safe truncate in seed migration\n\nBW010:1\n");
+            var stdout = new StringWriter();
+            var stderr = new StringWriter();
+
+            var exitCode = Program.Run(
+                new[] { "--provider", "postgres", "--ignore-file", ignoreFilePath },
+                stdout,
+                stderr,
+                new StringReader("TRUNCATE TABLE Orders;"));
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("No issues found.", stdout.ToString());
+        }
+        finally
+        {
+            File.Delete(ignoreFilePath);
+        }
+    }
+
+    [Fact]
+    public void Malformed_ignore_value_is_a_clean_usage_error()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Program.Run(
+            new[] { "--provider", "postgres", "--ignore", "BW010" },
+            stdout,
+            stderr,
+            new StringReader("TRUNCATE TABLE Orders;"));
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Invalid --ignore value", stderr.ToString());
+    }
+
+    [Fact]
+    public void Nonexistent_ignore_file_is_a_clean_usage_error()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Program.Run(
+            new[] { "--provider", "postgres", "--ignore-file", "does-not-exist-ignore.txt" },
+            stdout,
+            stderr,
+            new StringReader("TRUNCATE TABLE Orders;"));
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Could not read ignore file", stderr.ToString());
+    }
 }

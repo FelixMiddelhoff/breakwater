@@ -1,22 +1,36 @@
+using System.Collections.Generic;
 using Breakwater.Analyzers.Configuration;
 
 namespace Breakwater.Tool;
 
 /// <summary>Parsed command-line arguments for <c>breakwater-sql</c>.</summary>
-internal sealed record ParsedArguments(string? Path, BreakwaterDatabaseProvider Provider, bool Json);
+internal sealed record ParsedArguments(
+    string? Path,
+    BreakwaterDatabaseProvider Provider,
+    bool Json,
+    IReadOnlyList<string> IgnoreFlags,
+    string? IgnoreFilePath);
 
 internal static class CliArguments
 {
     public const string Usage =
-        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [<script-file>]\n" +
+        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json]\n" +
+        "                      [--ignore <RULE:LINE>]... [--ignore-file <path>] [<script-file>]\n" +
         "       breakwater-sql init [<path>] [--force]\n" +
-        "Reads the script from <script-file>, or from stdin when no file is given.";
+        "Reads the script from <script-file>, or from stdin when no file is given.\n" +
+        "--ignore <RULE:LINE>   Suppress one finding at an exact rule/line, e.g. --ignore BW010:7.\n" +
+        "                       Repeatable. Use when a generated script shape is known-safe but the\n" +
+        "                       generated SQL itself cannot carry a suppression comment.\n" +
+        "--ignore-file <path>   A text file with one RULE:LINE entry per line. Blank lines and\n" +
+        "                       '#'-prefixed comments are skipped. Combines with --ignore.";
 
     public static bool TryParse(string[] args, out ParsedArguments parsed, out string error)
     {
         string? path = null;
         BreakwaterDatabaseProvider? provider = null;
         var json = false;
+        var ignoreFlags = new List<string>();
+        string? ignoreFilePath = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -59,6 +73,35 @@ internal static class CliArguments
                     json = formatValue == "json";
                     break;
 
+                case "--ignore":
+                    if (!TryTakeValue(args, ref i, out var ignoreValue))
+                    {
+                        parsed = null!;
+                        error = "--ignore requires a value.";
+                        return false;
+                    }
+
+                    if (!FindingIgnores.TryParseEntry(ignoreValue, out _, out _))
+                    {
+                        parsed = null!;
+                        error = $"Invalid --ignore value '{ignoreValue}'. Expected RULE:LINE, e.g. BW010:7.";
+                        return false;
+                    }
+
+                    ignoreFlags.Add(ignoreValue);
+                    break;
+
+                case "--ignore-file":
+                    if (!TryTakeValue(args, ref i, out var ignoreFileValue))
+                    {
+                        parsed = null!;
+                        error = "--ignore-file requires a value.";
+                        return false;
+                    }
+
+                    ignoreFilePath = ignoreFileValue;
+                    break;
+
                 case "-h":
                 case "--help":
                     parsed = null!;
@@ -85,7 +128,7 @@ internal static class CliArguments
             return false;
         }
 
-        parsed = new ParsedArguments(path, provider.Value, json);
+        parsed = new ParsedArguments(path, provider.Value, json, ignoreFlags, ignoreFilePath);
         error = string.Empty;
         return true;
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Breakwater.Tool;
@@ -42,7 +43,32 @@ public static class Program
             return 2;
         }
 
+        if (!FindingIgnores.TryBuild(parsed.IgnoreFlags, parsed.IgnoreFilePath, out var ignores, out var ignoreError))
+        {
+            stderr.WriteLine(ignoreError);
+            return 2;
+        }
+
         var findings = SqlScriptLinter.Lint(script, parsed.Provider);
+
+        var suppressedCount = 0;
+        if (!ignores.IsEmpty)
+        {
+            var remaining = new List<SqlFinding>(findings.Count);
+            foreach (var finding in findings)
+            {
+                if (ignores.Suppresses(finding))
+                {
+                    suppressedCount++;
+                }
+                else
+                {
+                    remaining.Add(finding);
+                }
+            }
+
+            findings = remaining;
+        }
 
         if (parsed.Json)
         {
@@ -51,6 +77,11 @@ public static class Program
         else
         {
             OutputFormatter.WriteTable(stdout, findings);
+        }
+
+        if (suppressedCount > 0)
+        {
+            stdout.WriteLine($"{suppressedCount} finding(s) suppressed via --ignore.");
         }
 
         return findings.Count > 0 ? 1 : 0;
