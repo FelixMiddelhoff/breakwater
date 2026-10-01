@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Breakwater.Tool</RootNamespace>
+    <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>breakwater-sql</ToolCommandName>
+    <PackageId>Breakwater.Tool</PackageId>
+    <Description>Lints the SQL script produced by "dotnet ef migrations script" for the same unsafe shapes Breakwater's analyzer catches in inline Sql(...) calls - provider accurate, since the generated script is already provider-specific SQL.</Description>
+    <PackageTags>efcore;entity-framework-core;migrations;sql;dotnet-tool;static-analysis;zero-downtime</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/FelixMiddelhoff/breakwater</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only: reuses Sql/SqlTokenizer.cs and Sql/SqlStatementRisk.cs (both
+         internal) rather than duplicating the tokenizer. See the InternalsVisibleTo entry added
+         to Breakwater.Analyzers.csproj for Breakwater.Tool. This is a plain project reference,
+         not an analyzer reference - Breakwater.Tool is a console app that consumes the Sql/
+         types as ordinary library code, it does not itself run as a Roslyn analyzer. -->
+    <ProjectReference Include="..\Breakwater.Analyzers\Breakwater.Analyzers.csproj" />
+    <!-- Breakwater.Analyzers (netstandard2.0) pulls in Microsoft.CodeAnalysis.CSharp, whose own
+         System.Collections.Immutable dependency otherwise conflicts with the one net8.0 already
+         provides (MSB3277). Pinning the same package/version here lets NuGet resolve one set of
+         references instead of leaving a version conflict warning. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets the splitter/linter/CLI-argument-parsing internals be unit-tested directly. -->
+    <InternalsVisibleTo Include="Breakwater.Tool.Tests" />
+  </ItemGroup>
+
+</Project>
