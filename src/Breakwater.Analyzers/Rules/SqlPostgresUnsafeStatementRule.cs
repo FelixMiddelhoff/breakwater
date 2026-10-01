@@ -6,8 +6,11 @@ namespace Breakwater.Analyzers.Rules;
 
 /// <summary>
 /// BW019: the same class of risk as BW007 (unsafe index build) and BW004 (unsafe type change),
-/// but hidden inside raw SQL on Postgres, so those rules never see it. Only fires inside a known
-/// <c>IsNpgsql()</c> guard, per "silent when unsure" for provider-specific rules.
+/// but hidden inside raw SQL on Postgres, so those rules never see it. Only fires when the
+/// operation is detected as Postgres - either the known <c>IsNpgsql()</c> guard heuristic, or an
+/// explicit <c>breakwater_provider = postgres</c> configuration override (see
+/// <see cref="Operations.MigrationOperation.IsNpgsql"/>) - per "silent when unsure" for
+/// provider-specific rules.
 /// </summary>
 internal sealed class SqlPostgresUnsafeStatementRule : IMigrationRule
 {
