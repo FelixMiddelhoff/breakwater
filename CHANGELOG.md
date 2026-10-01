@@ -7,9 +7,22 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `BW037`: raw `CREATE TABLE`/`CREATE INDEX` with no `IF NOT EXISTS` guard
+  (Suggestion tier; intentionally co-fires with `BW019` on Postgres since
+  they flag different hazards on the same statement).
 - `breakwater-sql init`: scaffolds a starter `.editorconfig` listing every
   `breakwater_*` key, commented out.
+- `breakwater-sql --format sarif`: SARIF 2.1.0 output for GitHub code
+  scanning, alongside the existing `table`/`json` formats.
+- `breakwater-sql --fail-on <suggestion|warning>`: gate the exit code by
+  severity instead of failing on any finding (default `warning`, matching
+  prior behavior since every covered rule but `BW036` is Warning tier).
+- `breakwater-sql --ignore <RULE:LINE>` / `--ignore-file <path>`: suppress
+  specific findings in a generated script, which has no suppression-comment
+  mechanism of its own.
 - Widened NuGet `PackageTags` on both packages for discoverability.
+- Confirmed Central Package Management works cleanly with both packages;
+  documented in `docs/tutorial.md`.
 
 ### Fixed
 - README was missing `Configure` documentation for `breakwater_provider`,
