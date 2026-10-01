@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format follows
 - `breakwater-sql --ignore <RULE:LINE>` / `--ignore-file <path>`: suppress
   specific findings in a generated script, which has no suppression-comment
   mechanism of its own.
+- `breakwater-sql` now also checks `BW037` (was analyzer-only at first).
 - Widened NuGet `PackageTags` on both packages for discoverability.
 - Confirmed Central Package Management works cleanly with both packages;
   documented in `docs/tutorial.md`.
