@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
 - `Breakwater.Tool` (`breakwater-sql`): a companion dotnet global tool that
   lints the SQL script produced by `dotnet ef migrations script` for the
@@ -14,6 +16,25 @@ All notable changes to this project are documented here. The format follows
   generated script has no C# guard to detect it from). Packed and released
   alongside `Breakwater.Analyzers` from the same `release.yml` run, sharing
   its version.
+- `.github/actions/pr-comment`: a reusable composite GitHub Action other EF
+  Core repos can use to get the same SARIF-based PR-comment check breakwater
+  runs on its own PRs. Expects the consuming project to already reference
+  `Breakwater.Analyzers` — does not modify the consumer's project files.
+
+### Fixed
+- `BW019`'s doc comment understated detection: it also fires via an
+  explicit `breakwater_provider = postgres` override, not only the
+  `IsNpgsql()` guard heuristic.
+
+### Changed
+- CI dependency bumps: `actions/checkout` 4→7, `coverlet.collector`
+  10.0.1→10.1.0, `Microsoft.SourceLink.GitHub` 8.0.0→10.0.401,
+  `Microsoft.CodeAnalysis.Analyzers`/`CSharp`/`CSharp.Workspaces` to 5.9.0
+  (required adding `RS1038` to the analyzer project's `NoWarn`, since a
+  compiler-extension-referencing-Workspaces check now fires project-wide
+  even though only `CodeFixes/` uses Workspaces APIs).
+
+[0.2.0]: https://github.com/FelixMiddelhoff/breakwater/releases/tag/v0.2.0
 
 ## [0.1.0]
 
