@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Breakwater.Analyzers.Configuration;
+using Breakwater.Analyzers.Rules;
 using Breakwater.Analyzers.Sql;
+using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Tool;
 
@@ -71,7 +73,7 @@ internal static class SqlScriptLinter
                 {
                     redefinedDropIndexes.Add(i);
                     var line = locator.LineOf(statements[i].Text);
-                    findings.Add(new SqlFinding("BW036", "Suggestion", MigrationScriptSplitter.SectionFor(sections, line), line,
+                    findings.Add(new SqlFinding("BW036", RuleDescriptors.Suggestion, MigrationScriptSplitter.SectionFor(sections, line), line,
                         $"DROP {dropKind} IF EXISTS '{dropName}' is followed by a CREATE {dropKind} of the same name - a recognized idempotent-redefinition idiom, lower risk than an unpaired DROP"));
                     break;
                 }
@@ -87,7 +89,7 @@ internal static class SqlScriptLinter
             if (structuralReason is not null)
             {
                 var line = locator.LineOf(statement.Text);
-                findings.Add(new SqlFinding("BW035", "Warning", MigrationScriptSplitter.SectionFor(sections, line), line, structuralReason));
+                findings.Add(new SqlFinding("BW035", DiagnosticSeverity.Warning, MigrationScriptSplitter.SectionFor(sections, line), line, structuralReason));
                 continue;
             }
 
@@ -97,7 +99,7 @@ internal static class SqlScriptLinter
                 if (reason is not null)
                 {
                     var line = locator.LineOf(statement.Text);
-                    findings.Add(new SqlFinding("BW010", "Warning", MigrationScriptSplitter.SectionFor(sections, line), line, reason));
+                    findings.Add(new SqlFinding("BW010", DiagnosticSeverity.Warning, MigrationScriptSplitter.SectionFor(sections, line), line, reason));
                 }
             }
 
@@ -107,7 +109,7 @@ internal static class SqlScriptLinter
                 if (postgresReason is not null)
                 {
                     var line = locator.LineOf(statement.Text);
-                    findings.Add(new SqlFinding("BW019", "Warning", MigrationScriptSplitter.SectionFor(sections, line), line, postgresReason));
+                    findings.Add(new SqlFinding("BW019", DiagnosticSeverity.Warning, MigrationScriptSplitter.SectionFor(sections, line), line, postgresReason));
                 }
             }
         }
@@ -123,26 +125,26 @@ internal static class SqlScriptLinter
         // GO/USE are SQL Server-only syntax, same gate SqlBatchSeparatorRule applies.
         if (provider == BreakwaterDatabaseProvider.SqlServer)
         {
-            AddIfMatch(findings, sections, script, GoSeparator, "BW031", "Warning",
+            AddIfMatch(findings, sections, script, GoSeparator, "BW031", DiagnosticSeverity.Warning,
                 m => "Raw SQL contains 'GO', a client-side batch separator that cannot be sent as one command");
-            AddIfMatch(findings, sections, script, UseStatement, "BW031", "Warning",
+            AddIfMatch(findings, sections, script, UseStatement, "BW031", DiagnosticSeverity.Warning,
                 m => "Raw SQL contains 'USE', a client-side batch separator that cannot be sent as one command");
         }
 
         if (PasswordClause.IsMatch(script) || ConnectionString.IsMatch(script))
         {
             var match = PasswordClause.IsMatch(script) ? PasswordClause.Match(script) : ConnectionString.Match(script);
-            AddSingle(findings, sections, script, match, "BW033", "Warning",
+            AddSingle(findings, sections, script, match, "BW033", DiagnosticSeverity.Warning,
                 "Raw SQL contains a credential (a PASSWORD/IDENTIFIED BY clause or a connection string)");
         }
 
-        AddIfMatch(findings, sections, script, DropDatabase, "BW034", "Warning", m => "Raw SQL contains 'DROP DATABASE', which destroys data without anyone noticing");
-        AddIfMatch(findings, sections, script, NoCheckConstraint, "BW034", "Warning", m => "Raw SQL contains 'NOCHECK CONSTRAINT', which lets data become invalid without anyone noticing");
-        AddIfMatch(findings, sections, script, DisableTrigger, "BW034", "Warning", m => "Raw SQL contains 'DISABLE TRIGGER', which lets data become invalid without anyone noticing");
-        AddIfMatch(findings, sections, script, ForeignKeyChecksOff, "BW034", "Warning", m => "Raw SQL contains 'SET FOREIGN_KEY_CHECKS = 0', which lets data become invalid without anyone noticing");
+        AddIfMatch(findings, sections, script, DropDatabase, "BW034", DiagnosticSeverity.Warning, m => "Raw SQL contains 'DROP DATABASE', which destroys data without anyone noticing");
+        AddIfMatch(findings, sections, script, NoCheckConstraint, "BW034", DiagnosticSeverity.Warning, m => "Raw SQL contains 'NOCHECK CONSTRAINT', which lets data become invalid without anyone noticing");
+        AddIfMatch(findings, sections, script, DisableTrigger, "BW034", DiagnosticSeverity.Warning, m => "Raw SQL contains 'DISABLE TRIGGER', which lets data become invalid without anyone noticing");
+        AddIfMatch(findings, sections, script, ForeignKeyChecksOff, "BW034", DiagnosticSeverity.Warning, m => "Raw SQL contains 'SET FOREIGN_KEY_CHECKS = 0', which lets data become invalid without anyone noticing");
     }
 
-    private static void AddIfMatch(List<SqlFinding> findings, IReadOnlyList<MigrationSection> sections, string script, Regex pattern, string ruleId, string severity, Func<Match, string> message)
+    private static void AddIfMatch(List<SqlFinding> findings, IReadOnlyList<MigrationSection> sections, string script, Regex pattern, string ruleId, DiagnosticSeverity severity, Func<Match, string> message)
     {
         var match = pattern.Match(script);
         if (match.Success)
@@ -151,7 +153,7 @@ internal static class SqlScriptLinter
         }
     }
 
-    private static void AddSingle(List<SqlFinding> findings, IReadOnlyList<MigrationSection> sections, string script, Match match, string ruleId, string severity, string message)
+    private static void AddSingle(List<SqlFinding> findings, IReadOnlyList<MigrationSection> sections, string script, Match match, string ruleId, DiagnosticSeverity severity, string message)
     {
         var line = LineLocator.LineOfOffset(script, match.Index);
         findings.Add(new SqlFinding(ruleId, severity, MigrationScriptSplitter.SectionFor(sections, line), line, message));

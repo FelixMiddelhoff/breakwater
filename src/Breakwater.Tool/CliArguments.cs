@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Breakwater.Analyzers.Configuration;
+using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Tool;
 
@@ -8,16 +9,29 @@ internal sealed record ParsedArguments(
     string? Path,
     BreakwaterDatabaseProvider Provider,
     bool Json,
+    DiagnosticSeverity FailOn,
     IReadOnlyList<string> IgnoreFlags,
     string? IgnoreFilePath);
 
 internal static class CliArguments
 {
+    /// <summary>
+    /// Backward-compatible default: every rule this CLI currently implements (BW010/BW019/BW031/
+    /// BW033/BW034/BW035) is Warning tier, and BW036 is the only Suggestion-tier finding it can
+    /// report, so failing at Warning-and-above reproduces the "any finding at all exits 1"
+    /// behavior this tool originally shipped, for every script that was already exit-1 before.
+    /// </summary>
+    public const DiagnosticSeverity DefaultFailOn = DiagnosticSeverity.Warning;
+
     public const string Usage =
-        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json]\n" +
+        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [--fail-on <suggestion|warning>]\n" +
         "                      [--ignore <RULE:LINE>]... [--ignore-file <path>] [<script-file>]\n" +
         "       breakwater-sql init [<path>] [--force]\n" +
         "Reads the script from <script-file>, or from stdin when no file is given.\n" +
+        "--fail-on sets the minimum severity that causes a nonzero exit code (default: warning).\n" +
+        "  suggestion  exit 1 if any finding (including Suggestion-tier, e.g. BW036/BW037) is reported.\n" +
+        "  warning     exit 1 only for Warning-tier findings (BW010/BW019/BW031/BW033/BW034/BW035); this is the default.\n" +
+        "Lower-severity findings are still printed either way; only the exit code changes.\n" +
         "--ignore <RULE:LINE>   Suppress one finding at an exact rule/line, e.g. --ignore BW010:7.\n" +
         "                       Repeatable. Use when a generated script shape is known-safe but the\n" +
         "                       generated SQL itself cannot carry a suppression comment.\n" +
@@ -29,6 +43,7 @@ internal static class CliArguments
         string? path = null;
         BreakwaterDatabaseProvider? provider = null;
         var json = false;
+        var failOn = DefaultFailOn;
         var ignoreFlags = new List<string>();
         string? ignoreFilePath = null;
 
@@ -71,6 +86,30 @@ internal static class CliArguments
                     }
 
                     json = formatValue == "json";
+                    break;
+
+                case "--fail-on":
+                    if (!TryTakeValue(args, ref i, out var failOnValue))
+                    {
+                        parsed = null!;
+                        error = "--fail-on requires a value.";
+                        return false;
+                    }
+
+                    switch (failOnValue)
+                    {
+                        case "suggestion":
+                            failOn = DiagnosticSeverity.Info;
+                            break;
+                        case "warning":
+                            failOn = DiagnosticSeverity.Warning;
+                            break;
+                        default:
+                            parsed = null!;
+                            error = $"Unrecognized --fail-on value '{failOnValue}'. Expected suggestion or warning.";
+                            return false;
+                    }
+
                     break;
 
                 case "--ignore":
@@ -128,7 +167,7 @@ internal static class CliArguments
             return false;
         }
 
-        parsed = new ParsedArguments(path, provider.Value, json, ignoreFlags, ignoreFilePath);
+        parsed = new ParsedArguments(path, provider.Value, json, failOn, ignoreFlags, ignoreFilePath);
         error = string.Empty;
         return true;
     }

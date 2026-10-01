@@ -84,6 +84,18 @@ public static class Program
             stdout.WriteLine($"{suppressedCount} finding(s) suppressed via --ignore.");
         }
 
-        return findings.Count > 0 ? 1 : 0;
+        var shouldFail = false;
+        foreach (var finding in findings)
+        {
+            // DiagnosticSeverity's underlying int ordering is Hidden < Info < Warning < Error,
+            // so "at or above the threshold" is a plain numeric comparison.
+            if (finding.Severity >= parsed.FailOn)
+            {
+                shouldFail = true;
+                break;
+            }
+        }
+
+        return shouldFail ? 1 : 0;
     }
 }
