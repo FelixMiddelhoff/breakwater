@@ -254,9 +254,9 @@ Build with the same configuration in both, and check that no `NoWarn` or
 `.editorconfig` file differs between what the IDE and the build see.
 
 **A migration from years ago is flagged.** It is already in production and
-cannot be changed. Until a baseline option exists, lower the severity for the
-old files with a `.editorconfig` in an `OldMigrations` folder, or suppress the
-rules there.
+cannot be changed. Set `breakwater_since_migration` to that migration's id
+(or any later one) and everything at or before it is skipped entirely —
+see [Configure](../README.md#configure) in the README.
 
 **Build time.** The analyzer only inspects calls in your migration code, so its
 cost is negligible compared to compilation.
@@ -322,6 +322,17 @@ directly off `dotnet ef migrations script`'s own output without a temp file:
 ```
 dotnet ef migrations script | breakwater-sql --provider postgres
 ```
+
+`breakwater-sql init` scaffolds a starter `.editorconfig` listing every
+`breakwater_*` key (commented out), instead of copying them from the README
+by hand:
+
+```
+breakwater-sql init .editorconfig
+```
+
+It refuses to overwrite an existing file unless `--force` is passed; with
+no path, it prints the scaffold to stdout instead.
 
 It covers a smaller rule set than the analyzer — only the shapes that are
 genuinely about raw SQL text (`BW010`, `BW019`, `BW031`, `BW033`, `BW034`,

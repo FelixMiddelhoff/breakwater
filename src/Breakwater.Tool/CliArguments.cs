@@ -9,6 +9,7 @@ internal static class CliArguments
 {
     public const string Usage =
         "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [<script-file>]\n" +
+        "       breakwater-sql init [<path>] [--force]\n" +
         "Reads the script from <script-file>, or from stdin when no file is given.";
 
     public static bool TryParse(string[] args, out ParsedArguments parsed, out string error)

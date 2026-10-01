@@ -1,8 +1,10 @@
 # Breakwater
 
 [![CI](https://github.com/FelixMiddelhoff/breakwater/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixMiddelhoff/breakwater/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/Breakwater.Analyzers.svg)](https://www.nuget.org/packages/Breakwater.Analyzers)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Breakwater.Analyzers.svg)](https://www.nuget.org/packages/Breakwater.Analyzers)
+[![NuGet](https://img.shields.io/nuget/v/Breakwater.Analyzers.svg?label=Breakwater.Analyzers)](https://www.nuget.org/packages/Breakwater.Analyzers)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Breakwater.Analyzers.svg?label=downloads)](https://www.nuget.org/packages/Breakwater.Analyzers)
+[![NuGet](https://img.shields.io/nuget/v/Breakwater.Tool.svg?label=Breakwater.Tool)](https://www.nuget.org/packages/Breakwater.Tool)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Breakwater.Tool.svg?label=downloads)](https://www.nuget.org/packages/Breakwater.Tool)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Roslyn analyzer that catches unsafe EF Core migrations before production does.
@@ -138,6 +140,42 @@ place and appends a note asking for one. `#pragma warning disable BW001` and
 `[SuppressMessage("Migration", "BW001")]` also work, the same as any other
 analyzer.
 
+**Provider** — `breakwater_provider` names the database when it can't be
+inferred (an explicit `if (migrationBuilder.IsNpgsql())` guard, or a chained
+`Npgsql:`/`SqlServer:`/`MySql:`/`Sqlite:` annotation, are both auto-detected
+without this). Setting it makes every provider-specific rule
+(`BW007`, `BW014`, `BW016`, `BW019`, `BW020`, `BW029`, `BW031`) fire without
+needing that guard, since most real migrations never write one:
+
+```ini
+breakwater_provider = postgres   # sqlserver | postgres | sqlite | mysql | auto (default)
+```
+
+**Deploy model** — `breakwater_deploy_model = downtime_ok` downgrades
+`BW001`/`BW002`/`BW003` (the removal rules) to Info, for a project that
+accepts downtime during a deploy and doesn't need the rolling-deploy
+warning:
+
+```ini
+breakwater_deploy_model = downtime_ok   # rolling (default) | downtime_ok
+```
+
+**Adopting an existing project** — `breakwater_since_migration` skips every
+migration at or before a given id entirely, so years of existing production
+migrations aren't all flagged at once the day the package is added:
+
+```ini
+breakwater_since_migration = 20260101000000_LastMigrationBeforeBreakwater
+```
+
+**Small tables** — `breakwater_small_tables` (comma-separated, case
+insensitive) downgrades the table-lock/lock-duration rules to Info for
+tables you know are small enough that a lock is harmless:
+
+```ini
+breakwater_small_tables = FeatureFlags, AppSettings
+```
+
 ## Breakwater.Tool (`breakwater-sql`)
 
 A companion dotnet tool that lints the SQL script `dotnet ef migrations
@@ -155,6 +193,16 @@ breakwater-sql migrations.sql --provider postgres
 `--provider` is required (`sqlserver`, `postgres`, `sqlite`, `mysql`) since a
 generated script has no C# guard to detect it from. `--format table|json`
 switches output format; table is the default.
+
+`breakwater-sql init` prints a starter `.editorconfig` snippet listing every
+`breakwater_*` key from [Configure](#configure), commented out:
+
+```
+breakwater-sql init .editorconfig
+```
+
+Refuses to overwrite an existing file unless `--force` is passed; with no
+path, it prints to stdout instead.
 
 ## Use breakwater in CI on your own repo
 

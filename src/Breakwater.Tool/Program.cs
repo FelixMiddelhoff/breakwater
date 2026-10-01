@@ -17,6 +17,11 @@ public static class Program
     /// <summary>Returns the process exit code: 0 when clean, 1 when findings were reported, 2 on a usage error.</summary>
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr, TextReader stdin)
     {
+        if (args.Length > 0 && args[0] == "init")
+        {
+            return InitCommand.Run(args[1..], stdout, stderr);
+        }
+
         if (!CliArguments.TryParse(args, out var parsed, out var usageError))
         {
             stderr.WriteLine(usageError);

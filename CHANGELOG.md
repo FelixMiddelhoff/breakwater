@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `breakwater-sql init`: scaffolds a starter `.editorconfig` listing every
+  `breakwater_*` key, commented out.
+- Widened NuGet `PackageTags` on both packages for discoverability.
+
+### Fixed
+- README was missing `Configure` documentation for `breakwater_provider`,
+  `breakwater_deploy_model`, `breakwater_since_migration` and
+  `breakwater_small_tables` (only `breakwater_profile` was documented).
+- `docs/tutorial.md`'s troubleshooting section said "until a baseline option
+  exists" — `breakwater_since_migration` already is that option; corrected.
+- README was missing a NuGet badge for `Breakwater.Tool`.
+
 ## [0.2.0]
 
 ### Added
