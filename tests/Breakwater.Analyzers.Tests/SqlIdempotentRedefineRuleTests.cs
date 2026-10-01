@@ -115,14 +115,15 @@ public class SqlIdempotentRedefineRuleTests
     {
         // Only PROCEDURE/FUNCTION/VIEW are redefinable objects for this idiom; a table is a
         // structural object, not covered here (BW002 covers DropTable for the typed API; BW010
-        // still flags an unpaired raw-SQL table drop).
+        // still flags an unpaired raw-SQL table drop). The re-created CREATE TABLE also has no
+        // IF NOT EXISTS guard, so BW037 correctly fires too - a genuinely different hazard.
         var diagnostics = await AnalyzerRunner.AnalyzeAsync(MigrationSnippet.WithUp("""
             migrationBuilder.Sql(@"
                 DROP TABLE IF EXISTS Widget;
                 CREATE TABLE Widget (Id INT)");
             """));
 
-        Assert.Equal(new[] { "BW010" }, diagnostics.Select(d => d.Id));
+        Assert.Equal(new[] { "BW010", "BW037" }, diagnostics.Select(d => d.Id).OrderBy(id => id));
     }
 
     [Fact]

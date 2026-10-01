@@ -271,6 +271,74 @@ internal static class SqlStatementRisk
     private static readonly string[] RedefinableKinds = { "PROCEDURE", "FUNCTION", "VIEW" };
 
     /// <summary>
+    /// BW037: true when <paramref name="statement"/> is a bare <c>CREATE TABLE &lt;name&gt;</c> or
+    /// <c>CREATE [UNIQUE] INDEX [CONCURRENTLY] &lt;name&gt;</c> statement with <b>no</b>
+    /// <c>IF NOT EXISTS</c> guard, with the created object's kind and name returned. Only
+    /// <c>TABLE</c>/<c>INDEX</c> are in scope - the structural/schema-object set this rule's own
+    /// purpose covers; the redefinable-object set (<c>PROCEDURE</c>/<c>FUNCTION</c>/<c>VIEW</c>) is
+    /// BW036's job, not this rule's. Returns false (silent) when an <c>IF NOT EXISTS</c> guard is
+    /// already present, since that is exactly the safe form this rule asks for.
+    /// </summary>
+    public static bool TryGetCreateWithoutIfNotExists(SqlStatement statement, out string kind, out string name)
+    {
+        kind = string.Empty;
+        name = string.Empty;
+        var tokens = statement.Tokens;
+        if (tokens.Count < 2 || !tokens[0].IsKeyword("CREATE"))
+        {
+            return false;
+        }
+
+        var i = 1;
+        if (tokens[i].IsKeyword("UNIQUE"))
+        {
+            // CREATE UNIQUE INDEX - the UNIQUE is not part of the kind keyword itself.
+            i++;
+        }
+
+        if (i >= tokens.Count)
+        {
+            return false;
+        }
+
+        if (tokens[i].IsKeyword("TABLE"))
+        {
+            kind = "TABLE";
+        }
+        else if (tokens[i].IsKeyword("INDEX"))
+        {
+            kind = "INDEX";
+        }
+        else
+        {
+            return false;
+        }
+
+        var next = i + 1;
+        if (kind == "INDEX" && next < tokens.Count && tokens[next].IsKeyword("CONCURRENTLY"))
+        {
+            // Postgres: CREATE INDEX CONCURRENTLY [IF NOT EXISTS] <name> ... - CONCURRENTLY is
+            // not part of the name, and may itself come before an IF NOT EXISTS guard.
+            next++;
+        }
+
+        if (next + 2 < tokens.Count && tokens[next].IsKeyword("IF") && tokens[next + 1].IsKeyword("NOT") && tokens[next + 2].IsKeyword("EXISTS"))
+        {
+            // Already guarded - the safe form this rule is asking for, nothing to report.
+            return false;
+        }
+
+        var identifier = NextIdentifier(tokens, next);
+        if (identifier is null)
+        {
+            return false;
+        }
+
+        name = identifier;
+        return true;
+    }
+
+    /// <summary>
     /// Returns the text of the first <see cref="SqlTokenKind.Word"/> token found scanning forward
     /// from <paramref name="fromIndex"/>, skipping over quote/bracket punctuation (backtick,
     /// square bracket, double quote) so a quoted identifier is still recognized. Stops (returns

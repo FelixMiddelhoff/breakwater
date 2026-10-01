@@ -100,6 +100,7 @@ active: **Warning** and **Suggestion** rules run under the default
 | [BW034](docs/rules/BW034.md) | Raw `Sql` that disables a safety check (`NOCHECK CONSTRAINT`, `DISABLE TRIGGER`, `SET FOREIGN_KEY_CHECKS=0`, `DROP DATABASE`) | Warning |
 | [BW035](docs/rules/BW035.md) | Raw `Sql`: `ALTER TABLE ... DROP COLUMN`, or `ADD COLUMN ... NOT NULL` with no `DEFAULT` | Warning |
 | [BW036](docs/rules/BW036.md) | Raw `Sql`: `DROP PROCEDURE`/`FUNCTION`/`VIEW IF EXISTS` immediately followed by a matching `CREATE` (idempotent redefinition) | Suggestion |
+| [BW037](docs/rules/BW037.md) | Raw `Sql`: `CREATE TABLE`/`CREATE INDEX` with no `IF NOT EXISTS` guard (non-idempotent) | Suggestion |
 
 `BW999` is not a migration rule: it reports if a rule itself throws, so a bug
 in Breakwater surfaces as a low-severity diagnostic instead of crashing your

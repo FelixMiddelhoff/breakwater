@@ -41,7 +41,8 @@ internal static class RuleCatalog
         new PartialFailureRiskRule(),
         new MixedRiskyOperationsRule(),
         new SqlStructuralChangeRule(),
-        new SqlIdempotentRedefineRule());
+        new SqlIdempotentRedefineRule(),
+        new SqlIdempotentCreateRule());
 
     /// <summary>
     /// Rules that can all fire on the same <c>AlterColumn</c> call. Only the first match, in the
