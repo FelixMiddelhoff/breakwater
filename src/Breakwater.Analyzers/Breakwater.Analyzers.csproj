@@ -15,15 +15,17 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- Descriptors are built by RuleDescriptors.Create, which release tracking cannot follow. -->
-    <NoWarn>$(NoWarn);RS2008</NoWarn>
+    <!-- RS1038: the Workspaces reference below is isolated to CodeFixes/ (CodeFixProvider/CodeAction);
+         DiagnosticAnalyzer types never touch it, so plain command-line compilation is unaffected. -->
+    <NoWarn>$(NoWarn);RS2008;RS1038</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Compile-time only: the consumer's compiler already provides Roslyn. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.0.1" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0-1.26328.17" PrivateAssets="all" />
     <!-- CodeFixProvider/CodeAction live in Workspaces, needed only by CodeFixes/. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.0.1" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" PrivateAssets="all" />
   </ItemGroup>
 
   <PropertyGroup>
