@@ -70,13 +70,17 @@ public static class Program
             findings = remaining;
         }
 
-        if (parsed.Json)
+        switch (parsed.Format)
         {
-            OutputFormatter.WriteJson(stdout, findings);
-        }
-        else
-        {
-            OutputFormatter.WriteTable(stdout, findings);
+            case OutputFormat.Json:
+                OutputFormatter.WriteJson(stdout, findings);
+                break;
+            case OutputFormat.Sarif:
+                OutputFormatter.WriteSarif(stdout, findings, parsed.Path ?? "<stdin>");
+                break;
+            default:
+                OutputFormatter.WriteTable(stdout, findings);
+                break;
         }
 
         if (suppressedCount > 0)

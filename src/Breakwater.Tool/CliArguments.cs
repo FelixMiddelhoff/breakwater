@@ -4,11 +4,19 @@ using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Tool;
 
+/// <summary>Output format for <c>breakwater-sql</c> findings.</summary>
+internal enum OutputFormat
+{
+    Table,
+    Json,
+    Sarif,
+}
+
 /// <summary>Parsed command-line arguments for <c>breakwater-sql</c>.</summary>
 internal sealed record ParsedArguments(
     string? Path,
     BreakwaterDatabaseProvider Provider,
-    bool Json,
+    OutputFormat Format,
     DiagnosticSeverity FailOn,
     IReadOnlyList<string> IgnoreFlags,
     string? IgnoreFilePath);
@@ -24,7 +32,7 @@ internal static class CliArguments
     public const DiagnosticSeverity DefaultFailOn = DiagnosticSeverity.Warning;
 
     public const string Usage =
-        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [--fail-on <suggestion|warning>]\n" +
+        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json|sarif] [--fail-on <suggestion|warning>]\n" +
         "                      [--ignore <RULE:LINE>]... [--ignore-file <path>] [<script-file>]\n" +
         "       breakwater-sql init [<path>] [--force]\n" +
         "Reads the script from <script-file>, or from stdin when no file is given.\n" +
@@ -42,7 +50,7 @@ internal static class CliArguments
     {
         string? path = null;
         BreakwaterDatabaseProvider? provider = null;
-        var json = false;
+        var format = OutputFormat.Table;
         var failOn = DefaultFailOn;
         var ignoreFlags = new List<string>();
         string? ignoreFilePath = null;
@@ -78,14 +86,19 @@ internal static class CliArguments
                         return false;
                     }
 
-                    if (formatValue != "json" && formatValue != "table")
+                    if (formatValue != "json" && formatValue != "sarif" && formatValue != "table")
                     {
                         parsed = null!;
-                        error = $"Unrecognized format '{formatValue}'. Expected json or table.";
+                        error = $"Unrecognized format '{formatValue}'. Expected json, sarif, or table.";
                         return false;
                     }
 
-                    json = formatValue == "json";
+                    format = formatValue switch
+                    {
+                        "json" => OutputFormat.Json,
+                        "sarif" => OutputFormat.Sarif,
+                        _ => OutputFormat.Table,
+                    };
                     break;
 
                 case "--fail-on":
@@ -167,7 +180,7 @@ internal static class CliArguments
             return false;
         }
 
-        parsed = new ParsedArguments(path, provider.Value, json, failOn, ignoreFlags, ignoreFilePath);
+        parsed = new ParsedArguments(path, provider.Value, format, failOn, ignoreFlags, ignoreFilePath);
         error = string.Empty;
         return true;
     }

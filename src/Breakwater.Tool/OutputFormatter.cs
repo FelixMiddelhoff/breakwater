@@ -74,6 +74,90 @@ internal static class OutputFormatter
         _ => severity.ToString(),
     };
 
+    /// <summary>
+    /// Renders findings as a minimal, valid SARIF 2.1.0 log so the CLI's output can feed GitHub
+    /// code scanning the same way the analyzer's own <c>-p:ErrorLog=...;version=2</c> SARIF output
+    /// does (see <c>.github/workflows/pr-review.yml</c> and
+    /// <c>.github/scripts/post-sarif-comment.js</c>, which read <c>runs[0].results[].level</c>,
+    /// <c>ruleId</c>, <c>message.text</c>, and <c>locations[0].physicalLocation</c>). <see
+    /// cref="SqlFinding"/> only carries a flat "Warning"/"Suggestion" tier (no finer severity, see
+    /// <see cref="SqlScriptLinter"/>), which maps directly onto the two SARIF levels the comment
+    /// script already understands ("warning" and "note"); anything else defaults to "warning"
+    /// rather than inventing a tier this codebase doesn't have.
+    /// </summary>
+    public static void WriteSarif(TextWriter writer, IReadOnlyList<SqlFinding> findings, string scriptPath)
+    {
+        var uri = BuildArtifactUri(scriptPath);
+
+        var results = new List<object>(findings.Count);
+        foreach (var finding in findings)
+        {
+            results.Add(new
+            {
+                ruleId = finding.RuleId,
+                level = SeverityToSarifLevel(finding.Severity),
+                message = new { text = finding.Message },
+                locations = new object[]
+                {
+                    new
+                    {
+                        physicalLocation = new
+                        {
+                            artifactLocation = new { uri },
+                            region = new { startLine = finding.Line },
+                        },
+                    },
+                },
+            });
+        }
+
+        var document = new Dictionary<string, object?>
+        {
+            ["$schema"] = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+            ["version"] = "2.1.0",
+            ["runs"] = new object[]
+            {
+                new
+                {
+                    tool = new
+                    {
+                        driver = new
+                        {
+                            name = "Breakwater.Tool",
+                            informationUri = "https://github.com/FelixMiddelhoff/breakwater",
+                            version = typeof(OutputFormatter).Assembly.GetName().Version?.ToString() ?? "0.0.0",
+                        },
+                    },
+                    results,
+                },
+            },
+        };
+
+        var json = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        writer.WriteLine(json);
+    }
+
+    private static string SeverityToSarifLevel(DiagnosticSeverity severity) => severity switch
+    {
+        DiagnosticSeverity.Info => "note",
+        _ => "warning",
+    };
+
+    private static string BuildArtifactUri(string scriptPath)
+    {
+        if (Uri.TryCreate(scriptPath, UriKind.Absolute, out var absolute) && absolute.Scheme == "file")
+        {
+            return absolute.AbsoluteUri;
+        }
+
+        if (Path.IsPathRooted(scriptPath))
+        {
+            return new Uri(scriptPath).AbsoluteUri;
+        }
+
+        return scriptPath.Replace('\\', '/');
+    }
+
     private static int Max(IReadOnlyList<SqlFinding> findings, Func<SqlFinding, int> selector)
     {
         var max = 0;

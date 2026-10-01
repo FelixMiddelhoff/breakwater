@@ -192,8 +192,11 @@ breakwater-sql migrations.sql --provider postgres
 ```
 
 `--provider` is required (`sqlserver`, `postgres`, `sqlite`, `mysql`) since a
-generated script has no C# guard to detect it from. `--format table|json`
-switches output format; table is the default.
+generated script has no C# guard to detect it from. `--format table|json|sarif`
+switches output format; table is the default. `--format sarif` emits a
+minimal SARIF 2.1.0 log (one `run`, one `result` per finding) for feeding
+GitHub code scanning, the same way the analyzer's own
+`-p:ErrorLog=...;version=2` output does.
 
 `breakwater-sql init` prints a starter `.editorconfig` snippet listing every
 `breakwater_*` key from [Configure](#configure), commented out:
