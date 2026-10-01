@@ -43,6 +43,29 @@ To cover every project in a solution at once, put the same
 `<PackageReference>` in a `Directory.Build.props` file at the solution root.
 Projects without EF Core are ignored by the analyzer, so this is safe.
 
+**Works with Central Package Management.** If your solution uses CPM
+(`Directory.Packages.props` with `<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>`),
+drop the `Version` attribute from the `.csproj` reference and pin the version
+centrally instead — `PrivateAssets`/`IncludeAssets` behave identically either
+way:
+
+```xml
+<!-- Directory.Packages.props, at the solution root -->
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Breakwater.Analyzers" Version="0.2.0" />
+  </ItemGroup>
+</Project>
+```
+
+```xml
+<!-- your project's .csproj: no Version attribute -->
+<PackageReference Include="Breakwater.Analyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+```
+
 Requirements: a .NET SDK that can build your project (.NET 6 SDK or newer) and
 EF Core migrations (the analyzer looks for
 `Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder`, which comes with
