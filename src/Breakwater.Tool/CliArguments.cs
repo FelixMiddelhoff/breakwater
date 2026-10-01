@@ -1,22 +1,36 @@
 using Breakwater.Analyzers.Configuration;
+using Microsoft.CodeAnalysis;
 
 namespace Breakwater.Tool;
 
 /// <summary>Parsed command-line arguments for <c>breakwater-sql</c>.</summary>
-internal sealed record ParsedArguments(string? Path, BreakwaterDatabaseProvider Provider, bool Json);
+internal sealed record ParsedArguments(string? Path, BreakwaterDatabaseProvider Provider, bool Json, DiagnosticSeverity FailOn);
 
 internal static class CliArguments
 {
+    /// <summary>
+    /// Backward-compatible default: every rule this CLI currently implements (BW010/BW019/BW031/
+    /// BW033/BW034/BW035) is Warning tier, and BW036 is the only Suggestion-tier finding it can
+    /// report, so failing at Warning-and-above reproduces the "any finding at all exits 1"
+    /// behavior this tool originally shipped, for every script that was already exit-1 before.
+    /// </summary>
+    public const DiagnosticSeverity DefaultFailOn = DiagnosticSeverity.Warning;
+
     public const string Usage =
-        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [<script-file>]\n" +
+        "Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [--fail-on <suggestion|warning>] [<script-file>]\n" +
         "       breakwater-sql init [<path>] [--force]\n" +
-        "Reads the script from <script-file>, or from stdin when no file is given.";
+        "Reads the script from <script-file>, or from stdin when no file is given.\n" +
+        "--fail-on sets the minimum severity that causes a nonzero exit code (default: warning).\n" +
+        "  suggestion  exit 1 if any finding (including Suggestion-tier, e.g. BW036) is reported.\n" +
+        "  warning     exit 1 only for Warning-tier findings (BW010/BW019/BW031/BW033/BW034/BW035); this is the default.\n" +
+        "Lower-severity findings are still printed either way; only the exit code changes.";
 
     public static bool TryParse(string[] args, out ParsedArguments parsed, out string error)
     {
         string? path = null;
         BreakwaterDatabaseProvider? provider = null;
         var json = false;
+        var failOn = DefaultFailOn;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -59,6 +73,30 @@ internal static class CliArguments
                     json = formatValue == "json";
                     break;
 
+                case "--fail-on":
+                    if (!TryTakeValue(args, ref i, out var failOnValue))
+                    {
+                        parsed = null!;
+                        error = "--fail-on requires a value.";
+                        return false;
+                    }
+
+                    switch (failOnValue)
+                    {
+                        case "suggestion":
+                            failOn = DiagnosticSeverity.Info;
+                            break;
+                        case "warning":
+                            failOn = DiagnosticSeverity.Warning;
+                            break;
+                        default:
+                            parsed = null!;
+                            error = $"Unrecognized --fail-on value '{failOnValue}'. Expected suggestion or warning.";
+                            return false;
+                    }
+
+                    break;
+
                 case "-h":
                 case "--help":
                     parsed = null!;
@@ -85,7 +123,7 @@ internal static class CliArguments
             return false;
         }
 
-        parsed = new ParsedArguments(path, provider.Value, json);
+        parsed = new ParsedArguments(path, provider.Value, json, failOn);
         error = string.Empty;
         return true;
     }
