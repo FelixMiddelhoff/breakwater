@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>Breakwater.Analyzers</PackageId>
     <Description>Roslyn analyzer that flags unsafe EF Core migrations (table locks, data loss, breaking changes for rolling deploys) at build time.</Description>
-    <PackageTags>efcore;entity-framework-core;migrations;roslyn;analyzer;static-analysis;zero-downtime</PackageTags>
+    <PackageTags>efcore;entity-framework-core;ef-core-migrations;migrations;database-migrations;schema-migration;migration-safety;roslyn;roslyn-analyzer;analyzer;static-analysis;code-quality;linter;zero-downtime;database;sql-server;postgresql;csharp;dotnet;devops;ci-cd</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/FelixMiddelhoff/breakwater</PackageProjectUrl>

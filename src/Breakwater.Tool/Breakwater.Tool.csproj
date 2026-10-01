@@ -9,7 +9,7 @@
     <ToolCommandName>breakwater-sql</ToolCommandName>
     <PackageId>Breakwater.Tool</PackageId>
     <Description>Lints the SQL script produced by "dotnet ef migrations script" for the same unsafe shapes Breakwater's analyzer catches in inline Sql(...) calls - provider accurate, since the generated script is already provider-specific SQL.</Description>
-    <PackageTags>efcore;entity-framework-core;migrations;sql;dotnet-tool;static-analysis;zero-downtime</PackageTags>
+    <PackageTags>efcore;entity-framework-core;ef-core-migrations;migrations;database-migrations;schema-migration;migration-safety;sql;cli;dotnet-tool;global-tool;linter;static-analysis;code-quality;zero-downtime;database;sql-server;postgresql;mysql;sqlite;csharp;dotnet;devops;ci-cd</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/FelixMiddelhoff/breakwater</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
