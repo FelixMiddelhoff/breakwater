@@ -15,7 +15,9 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- Descriptors are built by RuleDescriptors.Create, which release tracking cannot follow. -->
-    <NoWarn>$(NoWarn);RS2008</NoWarn>
+    <!-- RS1038: the Workspaces reference below is isolated to CodeFixes/ (CodeFixProvider/CodeAction);
+         DiagnosticAnalyzer types never touch it, so plain command-line compilation is unaffected. -->
+    <NoWarn>$(NoWarn);RS2008;RS1038</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
