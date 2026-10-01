@@ -305,14 +305,16 @@ breakwater-sql migrations.sql --provider postgres
 ```
 
 `--format json` prints the same findings as a JSON array instead of a table,
-for scripting. Running with no `--provider` prints usage and exits `2`:
+for scripting. `--format sarif` prints a minimal SARIF 2.1.0 log instead, for
+feeding GitHub code scanning. Running with no `--provider` prints usage and
+exits `2`:
 
 ```
 breakwater-sql
 ```
 ```
 --provider is required: the generated script is already provider-specific SQL.
-Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json] [<script-file>]
+Usage: breakwater-sql --provider <sqlserver|postgres|sqlite|mysql> [--format json|sarif] [<script-file>]
 Reads the script from <script-file>, or from stdin when no file is given.
 ```
 
