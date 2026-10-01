@@ -86,7 +86,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Pack
-        run: dotnet pack src/Breakwater.Analyzers --configuration Release --output artifacts
+        run: |
+          dotnet pack src/Breakwater.Analyzers --configuration Release --output artifacts
+          dotnet pack src/Breakwater.Tool --configuration Release --output artifacts
       - name: Package contains exactly the analyzer
         run: |
           package="artifacts/Breakwater.Analyzers.${{ needs.check.outputs.version }}.nupkg"
@@ -94,6 +96,13 @@ jobs:
           echo "$listing"
           echo "$listing" | grep -qx "analyzers/dotnet/cs/Breakwater.Analyzers.dll"
           if echo "$listing" | grep -q '^lib/'; then echo "::error::package must not contain lib/"; exit 1; fi
+      - name: Package contains a working dotnet tool
+        run: |
+          package="artifacts/Breakwater.Tool.${{ needs.check.outputs.version }}.nupkg"
+          listing=$(unzip -Z1 "$package")
+          echo "$listing"
+          echo "$listing" | grep -qx "tools/net8.0/any/DotnetToolSettings.xml"
+          echo "$listing" | grep -q "^tools/net8.0/any/.*Breakwater\.Tool\.dll$"
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

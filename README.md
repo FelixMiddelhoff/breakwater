@@ -138,6 +138,24 @@ place and appends a note asking for one. `#pragma warning disable BW001` and
 `[SuppressMessage("Migration", "BW001")]` also work, the same as any other
 analyzer.
 
+## Breakwater.Tool (`breakwater-sql`)
+
+A companion dotnet tool that lints the SQL script `dotnet ef migrations
+script` produces — the same unsafe shapes the analyzer catches in inline
+`Sql(...)` calls, but against the final provider-specific SQL, so detection
+is provider-accurate instead of guess-based.
+
+```
+dotnet tool install --global Breakwater.Tool
+
+dotnet ef migrations script --output migrations.sql
+breakwater-sql migrations.sql --provider postgres
+```
+
+`--provider` is required (`sqlserver`, `postgres`, `sqlite`, `mysql`) since a
+generated script has no C# guard to detect it from. `--format table|json`
+switches output format; table is the default.
+
 ## Testing and feedback
 
 Breakwater is pre-release and could use real-world testing on real EF Core

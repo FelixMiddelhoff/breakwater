@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `Breakwater.Tool` (`breakwater-sql`): a companion dotnet global tool that
+  lints the SQL script produced by `dotnet ef migrations script` for the
+  same unsafe shapes the analyzer catches in inline `Sql(...)` calls, but
+  against the final provider-specific SQL (`--provider` is required: a
+  generated script has no C# guard to detect it from). Packed and released
+  alongside `Breakwater.Analyzers` from the same `release.yml` run, sharing
+  its version.
+
 ## [0.1.0]
 
 ### Added
