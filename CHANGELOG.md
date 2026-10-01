@@ -6,10 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
 - `BW037`: raw `CREATE TABLE`/`CREATE INDEX` with no `IF NOT EXISTS` guard
   (Suggestion tier; intentionally co-fires with `BW019` on Postgres since
-  they flag different hazards on the same statement).
+  they flag different hazards on the same statement). Covered by both the
+  analyzer and `breakwater-sql`.
 - `breakwater-sql init`: scaffolds a starter `.editorconfig` listing every
   `breakwater_*` key, commented out.
 - `breakwater-sql --format sarif`: SARIF 2.1.0 output for GitHub code
@@ -20,7 +23,6 @@ All notable changes to this project are documented here. The format follows
 - `breakwater-sql --ignore <RULE:LINE>` / `--ignore-file <path>`: suppress
   specific findings in a generated script, which has no suppression-comment
   mechanism of its own.
-- `breakwater-sql` now also checks `BW037` (was analyzer-only at first).
 - Widened NuGet `PackageTags` on both packages for discoverability.
 - Confirmed Central Package Management works cleanly with both packages;
   documented in `docs/tutorial.md`.
@@ -32,6 +34,8 @@ All notable changes to this project are documented here. The format follows
 - `docs/tutorial.md`'s troubleshooting section said "until a baseline option
   exists" — `breakwater_since_migration` already is that option; corrected.
 - README was missing a NuGet badge for `Breakwater.Tool`.
+
+[0.3.0]: https://github.com/FelixMiddelhoff/breakwater/releases/tag/v0.3.0
 
 ## [0.2.0]
 
