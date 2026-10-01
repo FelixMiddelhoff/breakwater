@@ -361,7 +361,7 @@ no path, it prints the scaffold to stdout instead.
 
 It covers a smaller rule set than the analyzer — only the shapes that are
 genuinely about raw SQL text (`BW010`, `BW019`, `BW031`, `BW033`, `BW034`,
-`BW035`, `BW036`) — since every other rule reasons about typed
+`BW035`, `BW036`, `BW037`) — since every other rule reasons about typed
 `MigrationBuilder` calls that no longer exist once EF has rendered them to
 SQL.
 

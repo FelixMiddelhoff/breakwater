@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Breakwater.Tool.Tests;
 
-/// <summary>Covers the rule shapes the tool reuses from the analyzer: BW010, BW019, BW031, BW033, BW034, BW035, BW036.</summary>
+/// <summary>Covers the rule shapes the tool reuses from the analyzer: BW010, BW019, BW031, BW033, BW034, BW035, BW036, BW037.</summary>
 public class SqlScriptLinterTests
 {
     [Fact]
@@ -44,7 +44,7 @@ public class SqlScriptLinterTests
     public void Safe_script_produces_no_findings()
     {
         const string script = """
-            CREATE TABLE Users (
+            CREATE TABLE IF NOT EXISTS Users (
                 Id int NOT NULL PRIMARY KEY,
                 Name nvarchar(100) NULL
             );
@@ -56,6 +56,32 @@ public class SqlScriptLinterTests
         var findings = SqlScriptLinter.Lint(script, BreakwaterDatabaseProvider.SqlServer);
 
         Assert.Empty(findings);
+    }
+
+    [Fact]
+    public void Bare_CREATE_TABLE_is_flagged_as_BW037()
+    {
+        var findings = SqlScriptLinter.Lint("CREATE TABLE Users (Id int NOT NULL PRIMARY KEY);", BreakwaterDatabaseProvider.Postgres);
+
+        var finding = Assert.Single(findings);
+        Assert.Equal("BW037", finding.RuleId);
+    }
+
+    [Fact]
+    public void CREATE_TABLE_IF_NOT_EXISTS_produces_no_findings()
+    {
+        var findings = SqlScriptLinter.Lint("CREATE TABLE IF NOT EXISTS Users (Id int NOT NULL PRIMARY KEY);", BreakwaterDatabaseProvider.Postgres);
+
+        Assert.Empty(findings);
+    }
+
+    [Fact]
+    public void Bare_CREATE_INDEX_on_postgres_reports_both_BW019_and_BW037()
+    {
+        var findings = SqlScriptLinter.Lint("CREATE INDEX IX_Users_Name ON Users (Name);", BreakwaterDatabaseProvider.Postgres);
+
+        Assert.Contains(findings, f => f.RuleId == "BW019");
+        Assert.Contains(findings, f => f.RuleId == "BW037");
     }
 
     [Fact]

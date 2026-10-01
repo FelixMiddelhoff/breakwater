@@ -10,13 +10,14 @@ namespace Breakwater.Tool;
 
 /// <summary>
 /// Runs the same risky-SQL checks the analyzer's raw-SQL rules (BW010/BW019/BW031/BW033/BW034/
-/// BW035/BW036) apply to an inline <c>migrationBuilder.Sql(...)</c> call, but against the whole
-/// text of a generated migration script instead. The tokenizer-driven checks (BW010, BW035,
-/// BW036, and BW019) call straight into <see cref="SqlTokenizer"/>/<see cref="SqlStatementRisk"/>,
-/// reusing the exact logic the analyzer uses. BW031/BW033/BW034 are plain regex matches over raw
-/// SQL text in the analyzer too (they never tokenize), so their patterns are restated here rather
-/// than reused through a shared internal type - duplicating four small, stable regexes was judged
-/// lower risk than changing analyzer rule files (out of scope for this tool) to expose them.
+/// BW035/BW036/BW037) apply to an inline <c>migrationBuilder.Sql(...)</c> call, but against the
+/// whole text of a generated migration script instead. The tokenizer-driven checks (BW010, BW035,
+/// BW036, BW037, and BW019) call straight into <see cref="SqlTokenizer"/>/
+/// <see cref="SqlStatementRisk"/>, reusing the exact logic the analyzer uses. BW031/BW033/BW034
+/// are plain regex matches over raw SQL text in the analyzer too (they never tokenize), so their
+/// patterns are restated here rather than reused through a shared internal type - duplicating
+/// four small, stable regexes was judged lower risk than changing analyzer rule files (out of
+/// scope for this tool) to expose them.
 /// </summary>
 internal static class SqlScriptLinter
 {
@@ -42,7 +43,7 @@ internal static class SqlScriptLinter
         return findings;
     }
 
-    /// <summary>BW010, BW035, BW036 (tokenizer-driven), and BW019 (Postgres only).</summary>
+    /// <summary>BW010, BW035, BW036, BW037 (tokenizer-driven), and BW019 (Postgres only).</summary>
     private static void LintStatements(
         string script,
         BreakwaterDatabaseProvider provider,
@@ -111,6 +112,17 @@ internal static class SqlScriptLinter
                     var line = locator.LineOf(statement.Text);
                     findings.Add(new SqlFinding("BW019", DiagnosticSeverity.Warning, MigrationScriptSplitter.SectionFor(sections, line), line, postgresReason));
                 }
+            }
+
+            // BW037 is provider-agnostic (the re-run hazard is universal) and deliberately not
+            // suppressed against BW019/BW010/BW035/BW036: it flags a different aspect (missing
+            // IF NOT EXISTS) than any of those, so it can legitimately co-fire on the same
+            // statement, matching SqlIdempotentCreateRule's own documented precedent.
+            if (SqlStatementRisk.TryGetCreateWithoutIfNotExists(statement, out var createKind, out var createName))
+            {
+                var line = locator.LineOf(statement.Text);
+                findings.Add(new SqlFinding("BW037", RuleDescriptors.Suggestion, MigrationScriptSplitter.SectionFor(sections, line), line,
+                    $"CREATE {createKind} '{createName}' has no IF NOT EXISTS guard - re-running this migration (a partial-deploy retry, or applying the same raw-SQL migration in two environments) throws because the {createKind} already exists"));
             }
         }
     }
