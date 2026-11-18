@@ -22,10 +22,10 @@
 
   <ItemGroup>
     <!-- Compile-time only: the consumer's compiler already provides Roslyn. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0-1.26328.17" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.12.0" PrivateAssets="all" />
     <!-- CodeFixProvider/CodeAction live in Workspaces, needed only by CodeFixes/. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.12.0" PrivateAssets="all" />
   </ItemGroup>
 
   <PropertyGroup>
